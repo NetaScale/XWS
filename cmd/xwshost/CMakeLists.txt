@@ -1,0 +1,1 @@
+add_executable(xwshost Main.cc)

@@ -1,2 +1,8 @@
 ByaccComp(Parser.yy)
-add_executable(xwshost Main.cc ${CMAKE_CURRENT_BINARY_DIR}/Parser.tab.cc)
+FlexComp(Scanner.ll)
+add_executable(xwshost Main.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/Parser.tab.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/Scanner.ll.cc)
+target_include_directories(xwshost PUBLIC ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}/vendor/flex)

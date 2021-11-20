@@ -6,3 +6,9 @@
  * ECMAScript® 2020 Language Specification
  * https://262.ecma-international.org/11.0/
  */
+
+%token MAIN
+
+%%
+
+main: MAIN;

@@ -1,0 +1,3 @@
+[submodule "vendor/byacc"]
+	path = vendor/byacc
+	url = ../byacc

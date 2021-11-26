@@ -42,4 +42,4 @@
 
 "\n"	
 " "
-[^ \n]+	return MAIN;
+[^ \n]+	return YIELD;

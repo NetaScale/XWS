@@ -11,7 +11,7 @@ struct YYLTYPE;
 class Driver {
 	public:
 	yyscan_t scanner;
-
+	const char * txt;
 };
 
 #endif /* DRIVER_HH_ */

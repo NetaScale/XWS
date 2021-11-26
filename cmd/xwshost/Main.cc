@@ -6,6 +6,7 @@
 #define VERINFO "Xwin Script Host(tm) 1.0 beta " __DATE__ " " __TIME__ ""
 #define CPYRIGHT "Copyright (c) 2021 NetaScale Systems Ltd. " \
     "All rights reserved."
+#define USE "Use is subject to licence terms."
 
 #include "Driver.hh"
 #include "Scanner.ll.hh"
@@ -14,14 +15,16 @@
 int
 main(int argc, char *arg[])
 {
-	std::string tst("test\n    tester");
+	std::string tst("MAIN MAIN");
 	Driver drv;
 	YY_BUFFER_STATE yybuf;
 
-	std::cout << VERINFO << "\n" << CPYRIGHT << "\n";
+	std::cout << VERINFO << "\n" << CPYRIGHT << "\n" << USE << "\n";
 
 	jslex_init_extra(&drv, &drv.scanner);
 	yybuf = js_scan_string(tst.c_str(), drv.scanner);
+	drv.txt =tst.c_str();
+	yydebug = 1;
 	yyparse(&drv);
 
 	/* Now we can clean up the buffer. */

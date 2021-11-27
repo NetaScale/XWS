@@ -20,48 +20,54 @@
 %code requires {
 #include "Driver.hh"
 
-#ifdef yylex
-#undef yylex
+#define AUTO_SEMICOLON printf(" -> ADDING AUTO SC\n");
 
-#endif
-#ifdef YYERROR_DECL
-#undef YYERROR_DECL
-#endif
-#ifdef YYERROR_CALL
-#undef YYERROR_CALL
-#endif
-#ifdef YYLEX
-#undef YYLEX
-#endif
+void
+jserror(YYLTYPE * loc, Driver * driver, const char * msg);
+void
+print_highlight(const char * txt, int first_line, int first_col, int last_line,
+    int last_col);
 
+/*
 #define YYLEX jslex(driver->scanner, &yylval, &yylloc)
 #define YYERROR_CALL(message) yyerror(driver, yychar, yystate, &yylloc, message)
 
 void
 yyerror (Driver * driver, int yystate, YYLTYPE * loc, char *s);
-void
-print_highlight(const char * txt, int first_line, int first_col, int last_line, int last_col);
 
-
-
-#define YYERROR_DECL()
+*/
 }
 
 %code provides {
-#define YY_DECL int jslex(yyscan_t yyscanner, int * const lval, YYLTYPE * loc)
+#define YY_DECL int \
+	true_jslex(JSSTYPE *yylval, JSLTYPE *loc, yyscan_t yyscanner, \
+	    Driver * driver)
+
 YY_DECL;
+int
+jslex(JSSTYPE *yylval, JSLTYPE *loc, Driver * driver);
 }
 
-%pure-parser
-%parse-param { Driver *driver }
+%define api.pure full
+%define api.prefix {js}
+%define parse.trace
+%define parse.error verbose
+%param { Driver *driver }
+%locations
 
-%start main
+%start Script
+
+%token AS ASYNC AWAIT BREAK CASE CATCH CLASS CONST CONTINUE DEBUGGER DEFAULT
+%token DELETE DO ELSE ENUM EVAL EXPORT EXTENDS FINALLY FOR FROM FUNCTION GET IF
+%token IMPLEMENTS IMPORT IN INSTANCEOF INTERFACE LET NEW OF PACKAGE PRIVATE
+%token PROTECETED PUBLIC RETURN SET STATIC SUPER SWITCH TARGET THIS THROW TRY
+%token TYPEOF VAR VOID WHILE WITH YIELD 
 
 %token ELLIPSIS /* ... */
 %token REGEXBODY REGEXFLAGS UNMATCHABLE
-%token THIS NUL BOOLLIT STRINGLIT NUMLIT
-%token IDENTIFIER YIELD AWAIT DELETE VOID TYPEOF NEW SUPER
-%token IMPORT META TARGET INSTANCEOF IN
+%token NULLTOK BOOLLIT STRINGLIT NUMLIT
+%token IDENTIFIER
+%token META
 
 %token /* ~, ! */ PLUSPLUS MINUSMINUS /* ++, -- */
 %token STARSTAR /* ** */
@@ -75,8 +81,6 @@ YY_DECL;
 %token /* = */ ASSIGNOP /* *=, /=, ... */
 
 %%
-
-main: Expression;
 
 /* 11.8.5 Regular Expression Literals */
 RegularExpressionLiteral
@@ -111,11 +115,8 @@ LabelIdentifier
 
 /* 12.2 Primary Expression */
 
-PrimaryExpression
-	: THIS
-	| IdentifierReference
-	| Literal
-	| ArrayLiteral
+PrimaryExpression:
+	  PrimaryExpression_NoLCB
 	| ObjectLiteral
 	/*| FunctionExpression
 	| ClassExpression
@@ -126,19 +127,26 @@ PrimaryExpression
 	| CoverParenthesisedExpressionAndArrowParameterList
 	;
 
+PrimaryExpression_NoLCB:
+	  THIS
+	| IdentifierReference
+	| Literal
+	| ArrayLiteral
+	;
+
 CoverParenthesisedExpressionAndArrowParameterList
 	: '(' Expression ')'
 	| '(' Expression ',' ')'
 	| '(' ')'
 	| '(' ELLIPSIS BindingIdentifier ')'
-	| '(' ELLIPSIS BindingPattern ')'
+	/* | '(' ELLIPSIS BindingPattern ')' */
 	| '(' Expression ',' ELLIPSIS BindingIdentifier ')'
-	| '(' Expression ',' ELLIPSIS BindingPattern ')'
+	/* | '(' Expression ',' ELLIPSIS BindingPattern ')' */
 	;
 
 /* 12.2.4 Literals */
 Literal
-	: NUL
+	: NULLTOK
 	| BOOLLIT
 	| NUMLIT
 	| STRINGLIT
@@ -420,9 +428,9 @@ ConditionalExpression
 /* 12.15 Assignment Operator */
 AssignmentExpression
 	: ConditionalExpression
-	| YieldExpression
+	/* | YieldExpression
 	| ArrowFunction
-	| AsyncArrowFunction
+	| AsyncArrowFunction */
 	| LeftHandSideExpression '=' AssignmentExpression
 	| LeftHandSideExpression ASSIGNOP AssignmentExpression
 	;
@@ -435,9 +443,115 @@ Expression
 	| Expression ',' AssignmentExpression
 	;
 
+Statement
+	: BlockStatement
+	/* | VariableStatement */
+	| EmptyStatement
+	| ExpressionStatement
+	;
+
+Declaration:
+	/*  HoistableDeclaration
+	| ClassDeclaration */
+	| LexicalDeclaration
+	// | ExportDeclaration
+	;
+
+/*
+HoistableDeclaration:
+	  FunctionDeclaration
+	| GeneratorDeclaration
+	| AsyncFunctionDeclaration
+	| AsyncGeneratorDeclaration
+	;
+
+BreakableStatement:
+	  IterationStatement
+	| SwitchStatement
+	;
+*/
+
+BlockStatement
+	: Block
+	;
+
+Block
+	: '{' StatementList '}'
+	/* | '{' '}' */ /* disabled until TODO #1 is fixed. */ 
+	;
+
+StatementList
+	: StatementListItem
+	| StatementList StatementListItem
+	;
+
+StatementListItem:
+	  Statement { printf("statement parsed\n"); }
+	| Declaration
+	;
+
+LexicalDeclaration:
+	  LetOrConst BindingList ';'
+	;
+
+LetOrConst:
+	  LET
+	| CONST
+	;
+
+BindingList:
+	  LexicalBinding
+	| BindingList ',' LexicalBinding
+	;
+
+LexicalBinding:
+	  BindingIdentifier Initialiser
+	/* | BindingPattern Initialiser */
+	;
+
+VariableStatement:
+	  VAR VariableDeclarationList ';'
+	;
+
+VariableDeclarationList:
+	  VariableDeclaration
+	| VariableDeclarationList ',' VariableDeclaration
+	;
+
+VariableDeclaration:
+	  BindingIdentifier
+	| BindingIdentifier Initialiser
+	;
+
+
+EmptyStatement
+	: ';'
+	;
+
+/*
+ * TODO #1:
+ * "An ExpressionStatement cannot start with a U+007B (LEFT CURLY BRACKET)
+ *  because that might make it ambiguous with a Block"
+ * In short: We need a "no left curly bracket start" alternative of Expression.
+ */
+ExpressionStatement
+	: Expression ';'
+	| Expression error { printf(" -> Absent Semicolon Inserted\n"); }
+	;
+
+Script
+	: ScriptBody
+	| /* epsilon */
+	;
+
+ScriptBody
+	: StatementList
+	;
+
+
 %%
 
-
+#if 0
 void
 yyerror(Driver *driver, int yychar, int yystate, YYLTYPE *loc, char *text)
 {
@@ -458,6 +572,15 @@ yyerror(Driver *driver, int yychar, int yystate, YYLTYPE *loc, char *text)
 		}
 	}
 	printf("\n");
+}
+#endif
+
+void jserror(JSLTYPE * loc, Driver * driver, const char * msg)
+{
+	printf("%d:%d: %s\n", loc->first_line + 1, loc->first_column,
+	    msg);
+	print_highlight(driver->txt, loc->first_line, loc->first_column,
+	    loc->last_line, loc->last_column);
 }
 
 void print_highlight(const char * txt, int first_line, int first_col, int last_line, int last_col)
@@ -489,4 +612,10 @@ void print_highlight(const char * txt, int first_line, int first_col, int last_l
 		putchar('^');
 
 	printf("\n");
+}
+
+int
+jslex(JSSTYPE *yylval, JSLTYPE *loc, Driver * driver)
+{
+	return true_jslex(yylval, loc, driver->scanner, driver);
 }

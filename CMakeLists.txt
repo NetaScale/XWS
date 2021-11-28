@@ -24,7 +24,7 @@ function(ByaccComp path)
           ${CMAKE_CURRENT_BINARY_DIR}/${file}.tab.hh
 	  ${CMAKE_CURRENT_BINARY_DIR}/${file}.output
       COMMAND ${BISON_EXECUTABLE}
-      ARGS --verbose
+      ARGS --verbose -Wall
           -o ${CMAKE_CURRENT_BINARY_DIR}/${file}.tab.cc -d ${path}
       DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${path}
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})

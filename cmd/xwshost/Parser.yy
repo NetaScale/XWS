@@ -13,8 +13,11 @@
 #include <string.h>
 
 #include "Driver.hh"
+#include "Parser.tab.hh"
 
 #define YYDEBUG 1
+
+static int assign_merge (YYSTYPE pattern, YYSTYPE regular);
 %}
 
 %code requires {
@@ -48,7 +51,7 @@ int
 jslex(JSSTYPE *yylval, JSLTYPE *loc, Driver * driver);
 }
 
-%define api.pure full
+%define api.pure
 %define api.prefix {js}
 %define parse.trace
 %define parse.error verbose
@@ -80,11 +83,12 @@ jslex(JSSTYPE *yylval, JSLTYPE *loc, Driver * driver);
 /* ?, : */
 %token /* = */ ASSIGNOP /* *=, /=, ... */
 
+
 %%
 
 /* 11.8.5 Regular Expression Literals */
-RegularExpressionLiteral
-	: '/' { printf("Matching Ragex\n"); } REGEXBODY '/' REGEXFLAGS
+RegularExpressionLiteral:
+	  '/' { printf("Matching Ragex\n"); } REGEXBODY '/' REGEXFLAGS
 	;
 
 /*
@@ -93,30 +97,30 @@ RegularExpressionLiteral
 
 /* Lexical */
 
-IdentifierNotReserved
-	: IDENTIFIER
+IdentifierNotReserved:
+	  IDENTIFIER
 	;
 
 /* 12.1 Identifiers */
 
 /* these ought to include yield/await in some instances */
 
-IdentifierReference
-	: IdentifierNotReserved
+IdentifierReference:
+	  IdentifierNotReserved
 	;
 
-BindingIdentifier
-	: IdentifierNotReserved
+BindingIdentifier:
+	  IdentifierNotReserved
 	;
 
-LabelIdentifier
-	: IdentifierNotReserved
+LabelIdentifier:
+	  IdentifierNotReserved
 	;
 
 /* 12.2 Primary Expression */
 
 PrimaryExpression:
-	  PrimaryExpression_NoLCB
+	  PrimaryExpression_NoBrace
 	| ObjectLiteral
 	/*| FunctionExpression
 	| ClassExpression
@@ -124,45 +128,45 @@ PrimaryExpression:
 	| AsyncFunctionExpression*/
 	| RegularExpressionLiteral
 	| TemplateLiteral
-	| CoverParenthesisedExpressionAndArrowParameterList
 	;
 
-PrimaryExpression_NoLCB:
+PrimaryExpression_NoBrace:
 	  THIS
 	| IdentifierReference
 	| Literal
 	| ArrayLiteral
+	| CoverParenthesisedExpressionAndArrowParameterList
 	;
 
-CoverParenthesisedExpressionAndArrowParameterList
-	: '(' Expression ')'
+CoverParenthesisedExpressionAndArrowParameterList:
+	  '(' Expression ')'
 	| '(' Expression ',' ')'
 	| '(' ')'
 	| '(' ELLIPSIS BindingIdentifier ')'
-	/* | '(' ELLIPSIS BindingPattern ')' */
+	| '(' ELLIPSIS BindingPattern ')'
 	| '(' Expression ',' ELLIPSIS BindingIdentifier ')'
-	/* | '(' Expression ',' ELLIPSIS BindingPattern ')' */
+	| '(' Expression ',' ELLIPSIS BindingPattern ')'
 	;
 
 /* 12.2.4 Literals */
-Literal
-	: NULLTOK
+Literal:
+	  NULLTOK
 	| BOOLLIT
 	| NUMLIT
 	| STRINGLIT
 	;
 
 /* 12.2.5. Array Initializer */
-ArrayLiteral
-	: '[' ']'
+ArrayLiteral:
+	  '[' ']'
 	| '[' Elision ']'
 	| '[' ElementList ']'
 	| '[' ElementList ',' Elision ']'
 	| '[' ElementList ',' ']'
 	;
 
-ElementList
-	: Elision AssignmentExpression
+ElementList:
+	  Elision AssignmentExpression
 	| AssignmentExpression
 	| Elision SpreadElement
 	| SpreadElement
@@ -172,65 +176,65 @@ ElementList
 	| ElementList ',' SpreadElement
 	;
 
-Elision
-	: ','
+Elision:
+	  ','
 	| Elision ','
 	;
 
-SpreadElement
-	: ELLIPSIS AssignmentExpression
+SpreadElement:
+	  ELLIPSIS AssignmentExpression
 	;
 
 /* 12.2.6 Object Initialiser */
-ObjectLiteral
-	: '{' '}'
+ObjectLiteral:
+	  '{' '}'
 	| '{' PropertyDefinitionList '}'
 	| '{' PropertyDefinitionList ',' '}'
 	;
 
-PropertyDefinitionList
-	: PropertyDefinition
+PropertyDefinitionList:
+	  PropertyDefinition
 	| PropertyDefinitionList ',' PropertyDefinition
 	;
 
-PropertyDefinition
-	: IdentifierReference
+PropertyDefinition:
+	  IdentifierReference
 	| CoverInitializedName
 	| PropertyName ':' AssignmentExpression
 	/*| MethodDefinition*/
 	| ELLIPSIS AssignmentExpression
 	;
 
-PropertyName
-	: LiteralPropertyName
+PropertyName:
+	  LiteralPropertyName
 	| ComputedPropertyName
 	;
 
-LiteralPropertyName
-	: IDENTIFIER
+LiteralPropertyName:
+	  IDENTIFIER
 	| STRINGLIT
 	| NUMLIT
 	;
 
-ComputedPropertyName
-	: '[' AssignmentExpression ']'
+ComputedPropertyName:
+	  '[' AssignmentExpression ']'
 	;
 
-CoverInitializedName
-	: IdentifierReference Initialiser
+CoverInitializedName:
+	  IdentifierReference Initialiser
 	;
 
-Initialiser
-	: '=' AssignmentExpression
+Initialiser:
+	  '=' AssignmentExpression
 	;
 
-TemplateLiteral
-	: UNMATCHABLE /* todo */
+TemplateLiteral:
+	  UNMATCHABLE /* todo */
 	;
 
 /* 12.3 Left-Hand-Side Expressions */
-MemberExpression
-	: PrimaryExpression
+MemberExpression:
+	  PrimaryExpression
 	| MemberExpression '[' Expression ']'
 	| MemberExpression '.' IDENTIFIER
 	| MemberExpression TemplateLiteral
@@ -239,31 +243,46 @@ MemberExpression
 	| NEW MemberExpression Arguments
 	;
 
-SuperProperty
-	: SUPER '[' Expression ']'
+MemberExpression_NoBrace:
+	  PrimaryExpression_NoBrace
+	| MemberExpression_NoBrace '[' Expression ']'
+	| MemberExpression_NoBrace '.' IDENTIFIER
+	| MemberExpression_NoBrace TemplateLiteral
+	| SuperProperty
+	| MetaProperty
+	| NEW MemberExpression Arguments
+	;
+
+SuperProperty:
+	  SUPER '[' Expression ']'
 	| SUPER '.' IDENTIFIER
 	;
 
-MetaProperty
-	: NewTarget
+MetaProperty:
+	  NewTarget
 	| ImportMeta
 	;
 
-NewTarget
-	: NEW '.' TARGET
+NewTarget:
+	  NEW '.' TARGET
 	;
 
-ImportMeta
-	: IMPORT '.' META
+ImportMeta:
+	  IMPORT '.' META
 	;
 
-NewExpression
-	: MemberExpression
+NewExpression:
+	  MemberExpression
 	| NEW NewExpression
 	;
 
-CallExpression
-	: CallMemberExpression
+NewExpression_NoBrace:
+	  MemberExpression_NoBrace
+	| NEW NewExpression
+	;
+
+CallExpression:
+	  CallMemberExpression
 	| SuperCall
 	| CallExpression Arguments
 	| CallExpression '[' Expression ']'
@@ -271,25 +290,38 @@ CallExpression
 	| CallExpression TemplateLiteral
 	;
 
-CallMemberExpression
-	: MemberExpression Arguments
+CallExpression_NoBrace:
+	  CallMemberExpression_NoBrace
+	| SuperCall
+	| CallExpression_NoBrace Arguments
+	| CallExpression_NoBrace '[' Expression ']'
+	| CallExpression_NoBrace '.' IDENTIFIER
+	| CallExpression_NoBrace TemplateLiteral
 	;
 
-SuperCall
-	: SUPER Arguments
+CallMemberExpression:
+	  MemberExpression Arguments
 	;
 
-ImportCall
-	: IMPORT '(' AssignmentExpression ')'
+CallMemberExpression_NoBrace:
+	  MemberExpression_NoBrace Arguments
 	;
 
-Arguments
-	: '(' ')'
+SuperCall:
+	  SUPER Arguments
+	;
+
+ImportCall:
+	  IMPORT '(' AssignmentExpression ')'
+	;
+
+Arguments:
+	  '(' ')'
 	| '(' ArgumentList ')'
 	;
 
-ArgumentList
-	: AssignmentExpression
+ArgumentList:
+	  AssignmentExpression
 	| ELLIPSIS AssignmentExpression
 	| ArgumentList ',' AssignmentExpression
 	| ArgumentList ',' ELLIPSIS AssignmentExpression
@@ -297,24 +329,50 @@ ArgumentList
 
 /* todo OptionalExpression */
 
-LeftHandSideExpression
-	: NewExpression
+LeftHandSideExpression:
+	  NewExpression
 	| CallExpression
 	/* | OptionalExpression */
 	;
 
+LeftHandSideExpression_NoBrace:
+	  NewExpression_NoBrace
+	| CallExpression_NoBrace
+	/* | OptionalExpression */
+	;
+
 /* 12.4 Update Expressions */
-UpdateExpression
-	: LeftHandSideExpression
+UpdateExpression:
+	  LeftHandSideExpression
 	| LeftHandSideExpression PLUSPLUS
 	| LeftHandSideExpression MINUSMINUS
 	| PLUSPLUS UnaryExpression
 	| MINUSMINUS UnaryExpression
 	;
 
+UpdateExpression_NoBrace:
+	  LeftHandSideExpression_NoBrace
+	| LeftHandSideExpression_NoBrace PLUSPLUS
+	| LeftHandSideExpression_NoBrace MINUSMINUS
+	| PLUSPLUS UnaryExpression
+	| MINUSMINUS UnaryExpression
+	;
+
 /* 12.5 Unary Operators */
-UnaryExpression
-	: UpdateExpression
+UnaryExpression:
+	  UpdateExpression
+	| DELETE UnaryExpression
+	| VOID UnaryExpression
+	| TYPEOF UnaryExpression
+	| '+' UnaryExpression
+	| '-' UnaryExpression
+	| '~' UnaryExpression
+	| '!' UnaryExpression
+	/* | AwaitExpression */
+	;
+
+UnaryExpression_NoBrace:
+	  UpdateExpression_NoBrace
 	| DELETE UnaryExpression
 	| VOID UnaryExpression
 	| TYPEOF UnaryExpression
@@ -326,41 +384,64 @@ UnaryExpression
 	;
 
 /* 12.6 Exponential Operator */
-ExponentialExpression
-	: UnaryExpression
+ExponentialExpression:
+	  UnaryExpression
 	| UpdateExpression STARSTAR ExponentialExpression
 	;
 
+ExponentialExpression_NoBrace:
+	  UnaryExpression_NoBrace
+	| UpdateExpression_NoBrace STARSTAR ExponentialExpression
+	;
+
 /* 12.7 Multiplicative Operators */
-MultiplicativeExpression
-	: ExponentialExpression
+MultiplicativeExpression:
+	  ExponentialExpression
 	| MultiplicativeExpression MultiplicativeOperator ExponentialExpression
 	;
 
-MultiplicativeOperator
-	: '*'
+MultiplicativeExpression_NoBrace:
+	  ExponentialExpression_NoBrace
+	| MultiplicativeExpression_NoBrace MultiplicativeOperator ExponentialExpression
+	;
+
+MultiplicativeOperator:
+	  '*'
 	| '/'
 	| '%'
 	;
 
 /* 12.8 Additive Operators */
-AdditiveExpression
-	: MultiplicativeExpression
+AdditiveExpression:
+	  MultiplicativeExpression
 	| AdditiveExpression '+' MultiplicativeExpression
 	| AdditiveExpression '-' MultiplicativeExpression
 	;
 
+AdditiveExpression_NoBrace:
+	  MultiplicativeExpression_NoBrace
+	| AdditiveExpression_NoBrace '+' MultiplicativeExpression
+	| AdditiveExpression_NoBrace '-' MultiplicativeExpression
+	;
+
 /* 12.9 Bitwise Shift Operators */
-ShiftExpression
-	: AdditiveExpression
+ShiftExpression:
+	  AdditiveExpression
 	| ShiftExpression LSHIFT AdditiveExpression
 	| ShiftExpression RSHIFT AdditiveExpression
 	| ShiftExpression URSHIFT
 	;
 
+ShiftExpression_NoBrace:
+	  AdditiveExpression_NoBrace
+	| ShiftExpression_NoBrace LSHIFT AdditiveExpression
+	| ShiftExpression_NoBrace RSHIFT AdditiveExpression
+	| ShiftExpression_NoBrace URSHIFT
+	;
+
 /* 12.10 Relational Operators */
-RelationalExpression
-	: ShiftExpression
+RelationalExpression:
+	  ShiftExpression
 	| RelationalExpression '<' ShiftExpression
 	| RelationalExpression '>' ShiftExpression
 	| RelationalExpression LTE ShiftExpression
@@ -369,65 +450,131 @@ RelationalExpression
 	| RelationalExpression IN ShiftExpression
 	;
 
+RelationalExpression_NoBrace:
+	  ShiftExpression_NoBrace
+	| RelationalExpression_NoBrace '<' ShiftExpression
+	| RelationalExpression_NoBrace '>' ShiftExpression
+	| RelationalExpression_NoBrace LTE ShiftExpression
+	| RelationalExpression_NoBrace GTE ShiftExpression
+	| RelationalExpression_NoBrace INSTANCEOF ShiftExpression
+	| RelationalExpression_NoBrace IN ShiftExpression
+	;
+
 /* 12.11 Equality Operators */
-EqualityExpression
-	: RelationalExpression
+EqualityExpression:
+	  RelationalExpression
 	| EqualityExpression EQ RelationalExpression
 	| EqualityExpression NEQ RelationalExpression
 	| EqualityExpression STRICTEQ RelationalExpression
 	| EqualityExpression STRICTNEQ RelationalExpression
 	;
 
+EqualityExpression_NoBrace:
+	  RelationalExpression_NoBrace
+	| EqualityExpression_NoBrace EQ RelationalExpression
+	| EqualityExpression_NoBrace NEQ RelationalExpression
+	| EqualityExpression_NoBrace STRICTEQ RelationalExpression
+	| EqualityExpression_NoBrace STRICTNEQ RelationalExpression
+	;
+
 /* 12.12 Binary Bitwise Operators */
-BitwiseANDExpression
-	: EqualityExpression
+BitwiseANDExpression:
+	  EqualityExpression
 	| BitwiseANDExpression '&' EqualityExpression
 	;
 
-BitwiseXORExpression
-	: BitwiseANDExpression
+BitwiseANDExpression_NoBrace:
+	  EqualityExpression_NoBrace
+	| BitwiseANDExpression_NoBrace '&' EqualityExpression
+	;
+
+BitwiseXORExpression:
+	  BitwiseANDExpression
 	| BitwiseXORExpression '^' BitwiseANDExpression
 	;
 
-BitwiseORExpression
-	: BitwiseXORExpression
+BitwiseXORExpression_NoBrace:
+	  BitwiseANDExpression_NoBrace
+	| BitwiseXORExpression_NoBrace '^' BitwiseANDExpression
+	;
+
+BitwiseORExpression:
+	  BitwiseXORExpression
 	| BitwiseORExpression '|' BitwiseXORExpression
 	;
 
+BitwiseORExpression_NoBrace:
+	  BitwiseXORExpression_NoBrace
+	| BitwiseORExpression_NoBrace '|' BitwiseXORExpression
+	;
+
 /* 12.13 Binary Logical Operators */
-LogicalANDExpression
-	: BitwiseORExpression
+LogicalANDExpression:
+	  BitwiseORExpression
 	| LogicalANDExpression LOGAND BitwiseORExpression
 	;
-LogicalORExpression
-	: LogicalANDExpression
+
+LogicalANDExpression_NoBrace:
+	  BitwiseORExpression_NoBrace
+	| LogicalANDExpression_NoBrace LOGAND BitwiseORExpression
+	;
+
+LogicalORExpression:
+	  LogicalANDExpression
 	| LogicalORExpression LOGOR LogicalANDExpression
 	;
 
-CoalesceExpression
-	: CoalesceExpressionHead QUESTIONQUESTION BitwiseORExpression
+LogicalORExpression_NoBrace:
+	  LogicalANDExpression_NoBrace
+	| LogicalORExpression_NoBrace LOGOR LogicalANDExpression
 	;
 
-CoalesceExpressionHead
-	: CoalesceExpression
+CoalesceExpression:
+	  CoalesceExpressionHead QUESTIONQUESTION BitwiseORExpression
+	;
+
+CoalesceExpressionHead:
+	  CoalesceExpression
 	| BitwiseORExpression
 	;
 
-ShortCircuitExpression
-	: LogicalORExpression
+CoalesceExpression_NoBrace:
+	  CoalesceExpressionHead_NoBrace QUESTIONQUESTION BitwiseORExpression
+	;
+
+CoalesceExpressionHead_NoBrace:
+	  CoalesceExpression_NoBrace
+	| BitwiseORExpression_NoBrace
+	;
+
+ShortCircuitExpression:
+	  LogicalORExpression
 	| CoalesceExpression
 	;
 
+ShortCircuitExpression_NoBrace:
+	  LogicalORExpression_NoBrace
+	| CoalesceExpression_NoBrace
+	;
+
 /* 12.14 Conditional Operator */
-ConditionalExpression
-	: ShortCircuitExpression
+ConditionalExpression:
+	  ShortCircuitExpression
 	| ShortCircuitExpression '?' AssignmentExpression ':'
 	    AssignmentExpression
 	;
 
+ConditionalExpression_NoBrace:
+	  ShortCircuitExpression_NoBrace
+	| ShortCircuitExpression_NoBrace '?' AssignmentExpression ':'
+	    AssignmentExpression
+	;
+
 /* 12.15 Assignment Operator */
-AssignmentExpression
-	: ConditionalExpression
+AssignmentExpression:
+	  ConditionalExpression
+	// | ObjectAssignmentPattern '=' AssignmentExpression
+	// | ArrayAssignmentPattern '=' AssignmentExpression
 	/* | YieldExpression
 	| ArrowFunction
 	| AsyncArrowFunction */
@@ -435,25 +582,101 @@ AssignmentExpression
 	| LeftHandSideExpression ASSIGNOP AssignmentExpression
 	;
 
-/* todo 12.15.5 Destructuring Assignment */
+AssignmentExpression_NoBrace:
+	  ConditionalExpression_NoBrace
+	// | ArrayAssignmentPattern '=' AssignmentExpression
+	/* | YieldExpression
+	| ArrowFunction
+	| AsyncArrowFunction */
+	| LeftHandSideExpression_NoBrace '=' AssignmentExpression
+	| LeftHandSideExpression_NoBrace ASSIGNOP AssignmentExpression
+	;
 
-/* 12.16 Comma Operator */
-Expression
-	: AssignmentExpression
+/* 12.15.5 Destructuring Assignment */
+/*
+ * This grammar is 'covered' by the ObjectLiteral and ArrayLiteral nonterminals.
+ * It is therefore not actually parsed. This is why it is commented out.
+ */
+
+/*
+ObjectAssignmentPattern:
+	  '{' '}'
+	| '{' AssignmentRestProperty '}'
+	| '{' AssignmentPropertyList '}'
+	| '{' AssignmentPropertyList ',' '}'
+	| '{' AssignmentPropertyList ',' AssignmentRestProperty '}'
+	;
+
+ArrayAssignmentPattern:
+	  '[' ']'
+	| '[' AssignmentRestElement ']'
+	| '[' Elision AssignmentRestElement ']'
+	| '[' AssignmentElementList ']'
+	| '[' AssignmentElementList ',' ']'
+	| '[' AssignmentElementList ',' AssignmentRestElement ']'
+	| '[' AssignmentElementList ',' Elision ']'
+	| '[' AssignmentElementList ',' Elision ',' AssignmentRestElement ']'
+	;
+
+AssignmentRestProperty:
+	  ELLIPSIS DestructuringAssignmentTarget
+	  ;
+
+AssignmentPropertyList:
+	  AssignmentProperty
+	| AssignmentPropertyList ',' AssignmentProperty
+	;
+
+AssignmentElementList:
+	  AssignmentElisionElement
+	| AssignmentElementList ',' AssignmentElisionElement
+	;
+
+AssignmentElisionElement:
+	  AssignmentElement
+	| Elision AssignmentElement
+	;
+
+AssignmentProperty:
+	  IdentifierReference Initialiser
+	| PropertyName ':' AssignmentElement
+	;
+
+AssignmentElement:
+	  DestructuringAssignmentTarget Initialiser
+	;
+
+AssignmentRestElement:
+	  ELLIPSIS DestructuringAssignmentTarget
+	;
+
+DestructuringAssignmentTarget:
+	  LeftHandSideExpression
+	;
+*/
+
+/* 12.16 ',' Operator */
+Expression:
+	  AssignmentExpression
 	| Expression ',' AssignmentExpression
 	;
 
-Statement
-	: BlockStatement
-	/* | VariableStatement */
+Expression_NoBrace:
+	  AssignmentExpression_NoBrace
+	| Expression_NoBrace ',' AssignmentExpression
+	;
+
+Statement:
+	  BlockStatement
+	| VariableStatement
 	| EmptyStatement
 	| ExpressionStatement
 	;
 
 Declaration:
 	/*  HoistableDeclaration
-	| ClassDeclaration */
-	| LexicalDeclaration
+	| ClassDeclaration 
+	| */ LexicalDeclaration
 	// | ExportDeclaration
 	;
 
@@ -471,17 +694,17 @@ BreakableStatement:
 	;
 */
 
-BlockStatement
-	: Block
+BlockStatement:
+	  Block
 	;
 
-Block
-	: '{' StatementList '}'
+Block:
+	  '{' StatementList '}'
 	/* | '{' '}' */ /* disabled until TODO #1 is fixed. */ 
 	;
 
-StatementList
-	: StatementListItem
+StatementList:
+	  StatementListItem
 	| StatementList StatementListItem
 	;
 
@@ -506,7 +729,7 @@ BindingList:
 
 LexicalBinding:
 	  BindingIdentifier Initialiser
-	/* | BindingPattern Initialiser */
+	| BindingPattern Initialiser
 	;
 
 VariableStatement:
@@ -523,29 +746,91 @@ VariableDeclaration:
 	| BindingIdentifier Initialiser
 	;
 
+/* 13.3.3 Destructuring Binding Patterns */
+BindingPattern:
+	  ObjectBindingPattern
+	| ArrayBindingPattern
+	;
 
-EmptyStatement
-	: ';'
+ObjectBindingPattern:
+	  '{' '}'
+	| '{' BindingPropertyList '}'
+	| '{' BindingPropertyList ',' '}'
+	| '{' BindingPropertyList ',' BindingRestProperty '}'
+	;
+
+ArrayBindingPattern:
+	  '[' ']'
+	| '[' BindingRestElement ']'
+	| '[' Elision ']'
+	| '[' Elision BindingRestElement ']'
+	| '[' BindingElementList ']'
+	| '[' BindingElementList ',' BindingRestElement ']'
+	| '[' BindingElementList ',' Elision ']'
+	| '[' BindingElementList ',' Elision BindingRestElement ']'
+	;
+
+BindingRestProperty:
+	  ELLIPSIS BindingIdentifier
+	;
+
+BindingPropertyList:
+	 BindingProperty
+	| BindingPropertyList ',' BindingProperty
+	;
+
+BindingElementList:
+	  BindingElisionElement
+	| BindingElementList ',' BindingElisionElement
+	;
+
+BindingElisionElement:
+	  BindingElement
+	| Elision BindingElement
+	;
+
+BindingProperty:
+	  SingleNameBinding
+	| PropertyName ':' BindingElement
+	;
+
+BindingElement:
+	  SingleNameBinding
+	| BindingPattern
+	| BindingPattern Initialiser
+	;
+
+SingleNameBinding:
+	  BindingIdentifier
+	| BindingIdentifier Initialiser
+	;
+
+BindingRestElement:
+	  ELLIPSIS BindingIdentifier
+	| ELLIPSIS BindingPattern
+	;
+
+EmptyStatement:
+	  ';'
 	;
 
 /*
- * TODO #1:
  * "An ExpressionStatement cannot start with a U+007B (LEFT CURLY BRACKET)
- *  because that might make it ambiguous with a Block"
- * In short: We need a "no left curly bracket start" alternative of Expression.
+ * because that might make it ambiguous with a Block"
+ * We therefore need a "no left curly bracket start" alternative of Expression.
  */
-ExpressionStatement
-	: Expression ';'
-	| Expression error { printf(" -> Absent Semicolon Inserted\n"); }
+ExpressionStatement:
+	  Expression_NoBrace ';'
+	| Expression_NoBrace error { printf(" -> Absent Semicolon Inserted\n"); }
 	;
 
-Script
-	: ScriptBody
-	| /* epsilon */
+Script:
+	  ScriptBody
+	| %empty
 	;
 
-ScriptBody
-	: StatementList
+ScriptBody:
+	  StatementList
 	;
 
 
@@ -618,4 +903,11 @@ int
 jslex(JSSTYPE *yylval, JSLTYPE *loc, Driver * driver)
 {
 	return true_jslex(yylval, loc, driver->scanner, driver);
+}
+
+static YYSTYPE
+assign_merge (YYSTYPE pattern, YYSTYPE regular)
+{
+	printf("\n\nWANT TO CHIOOSE BETWEEN!!\n\n");
+	return regular;
 }

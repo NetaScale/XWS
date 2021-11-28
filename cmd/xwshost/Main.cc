@@ -15,7 +15,7 @@
 int
 main(int argc, char *arg[])
 {
-	std::string tst("a = hello(55) x = y");
+	std::string tst("({x, y} = 55)");
 	Driver drv;
 	YY_BUFFER_STATE yybuf;
 
@@ -24,7 +24,7 @@ main(int argc, char *arg[])
 	jslex_init_extra(&drv, &drv.scanner);
 	yybuf = js_scan_string(tst.c_str(), drv.scanner);
 	drv.txt =tst.c_str();
-	jsdebug = 0;
+	jsdebug = 1;
 	jsparse(&drv);
 
 	/* Now we can clean up the buffer. */

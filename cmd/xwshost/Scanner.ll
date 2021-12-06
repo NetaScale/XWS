@@ -19,7 +19,7 @@
 %option prefix = "js"
 
 %{
-#include "Parser.tab.hh"
+#include "AST.hh"
 
 #define YY_USER_INIT        \
 	loc->last_line = 0; \
@@ -40,7 +40,7 @@
 %}
 
 /* todo NBSP, ZWNBSP, USP */
-WhiteSpace	([\t\v\f ]) 
+WhiteSpace	([\t\v\f ])
 /* todo LS, PS */
 LineTerminator	([\n\r])
 LineTerminatorSequence	((\r\n)|{LineTerminator}) /* needs also LS, PS */
@@ -133,8 +133,14 @@ DecimalLiteral {DecimalIntegerLiteral}
 "||"			return LOGOR;
 "??"			return QUESTIONQUESTION;
 
-{IdentifierName}	return IDENTIFIER;
+{IdentifierName}	{
+	yylval->str = strdup(yytext);
+	return IDENTIFIER;
+}
 
-{DecimalLiteral}	return NUMLIT;
+{DecimalLiteral}	{
+	yylval->exprNode = new NumberNode(*loc, strtod(yytext, 0));
+	return NUMLIT;
+}
 
 .                   	return (int)yytext[0];

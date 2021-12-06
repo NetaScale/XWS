@@ -10,7 +10,7 @@
 
 #include "Driver.hh"
 #include "Scanner.ll.hh"
-#include "Parser.tab.hh"
+#include "AST.hh"
 
 int
 main(int argc, char *arg[])

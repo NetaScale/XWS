@@ -4,6 +4,9 @@
  *
  * ECMA-262, 11th edition, June 2020: ECMAScript® 2020 Language Specification
  * https://262.ecma-international.org/11.0/
+ * Draft ECMA-262, 13th edition, November 20, 2021: ECMAScript® 2022 Language
+ * Specification
+ * https://tc39.es/ecma262/
  */
 
 %{
@@ -13,7 +16,7 @@
 #include <string.h>
 
 #include "Driver.hh"
-#include "Parser.tab.hh"
+#include "AST.hh"
 
 #define YYDEBUG 1
 
@@ -23,7 +26,9 @@ static int assign_merge (YYSTYPE pattern, YYSTYPE regular);
 %code requires {
 #include "Driver.hh"
 
-#define AUTO_SEMICOLON printf(" -> ADDING AUTO SC\n");
+class ExpressionNode;
+
+#define ASI printf(" -> ADDING AUTO SC\n");
 
 void
 jserror(YYLTYPE * loc, Driver * driver, const char * msg);
@@ -64,7 +69,7 @@ jslex(JSSTYPE *yylval, JSLTYPE *loc, Driver * driver);
 %token DELETE DO ELSE ENUM EVAL EXPORT EXTENDS FINALLY FOR FROM FUNCTION GET IF
 %token IMPLEMENTS IMPORT IN INSTANCEOF INTERFACE LET NEW OF PACKAGE PRIVATE
 %token PROTECETED PUBLIC RETURN SET STATIC SUPER SWITCH TARGET THIS THROW TRY
-%token TYPEOF VAR VOID WHILE WITH YIELD 
+%token TYPEOF VAR VOID WHILE WITH YIELD
 
 %token ELLIPSIS /* ... */
 %token REGEXBODY REGEXFLAGS UNMATCHABLE
@@ -82,13 +87,61 @@ jslex(JSSTYPE *yylval, JSLTYPE *loc, Driver * driver);
 %token QUESTIONQUESTION /* ?? */
 /* ?, : */
 %token /* = */ ASSIGNOP /* *=, /=, ... */
+%token OPTIONAL /* ?. */
+
+%precedence PLAIN_IF
+%precedence ELSE
+
+%union {
+	Operator::Op opVal;
+	char * str;
+
+	ExpressionNode * exprNode;
+}
+
+%type <str> IDENTIFIER IdentifierNotReserved
+
+%type <exprNode> IdentifierReference BindingIdentifier
+
+%type <exprNode> PrimaryExpression PrimaryExpression_NoBrace
+%type <exprNode> Literal
+
+%type <exprNode> MemberExpression MemberExpression_NoBrace
+%type <exprNode> NewExpression NewExpression_NoBrace
+%type <exprNode> CallExpression CallExpression_NoBrace
+%type <exprNode> OptionalExpression OptionalExpression_NoBrace
+%type <exprNode> LeftHandSideExpression LeftHandSideExpression_NoBrace
+%type <exprNode> UpdateExpression UpdateExpression_NoBrace
+%type <exprNode> UnaryExpression UnaryExpression_NoBrace
+%type <exprNode> ExponentialExpression ExponentialExpression_NoBrace
+
+%type <opVal> MultiplicativeOperator
+%type <exprNode> MultiplicativeExpression MultiplicativeExpression_NoBrace
+%type <exprNode> AdditiveExpression AdditiveExpression_NoBrace
+%type <exprNode> ShiftExpression ShiftExpression_NoBrace
+%type <exprNode> RelationalExpression RelationalExpression_NoBrace
+%type <exprNode> EqualityExpression EqualityExpression_NoBrace
+%type <exprNode> BitwiseANDExpression BitwiseANDExpression_NoBrace
+%type <exprNode> BitwiseORExpression BitwiseORExpression_NoBrace
+%type <exprNode> BitwiseXORExpression BitwiseXORExpression_NoBrace
+%type <exprNode> LogicalANDExpression LogicalANDExpression_NoBrace
+%type <exprNode> LogicalORExpression LogicalORExpression_NoBrace
+%type <exprNode> CoalesceExpression CoalesceExpression_NoBrace
+%type <exprNode> CoalesceExpressionHead CoalesceExpressionHead_NoBrace
+%type <exprNode> ShortCircuitExpression ShortCircuitExpression_NoBrace
+%type <exprNode> ConditionalExpression ConditionalExpression_NoBrace
+%type <exprNode> AssignmentExpression AssignmentExpression_NoBrace
+
+
+
+
 
 
 %%
 
 /* 11.8.5 Regular Expression Literals */
 RegularExpressionLiteral:
-	  '/' { printf("Matching Ragex\n"); } REGEXBODY '/' REGEXFLAGS
+	  '/' { printf("Matching Regex\n"); } REGEXBODY '/' REGEXFLAGS
 	;
 
 /*
@@ -105,12 +158,20 @@ IdentifierNotReserved:
 
 /* these ought to include yield/await in some instances */
 
+/*
+how a preprocessor grammar might look:
+IdentifierReference(Yield, Await):
+	  IdentifierNotReserved(?Yield, ?Await)
+	| (~Yield) YIELD
+	| (~Await) AWAIT
+*/
+
 IdentifierReference:
-	  IdentifierNotReserved
+	  IdentifierNotReserved  { $$ = new IdentifierNode(@1, $1); }
 	;
 
 BindingIdentifier:
-	  IdentifierNotReserved
+	  IdentifierNotReserved  { $$ = new IdentifierNode(@1, $1); }
 	;
 
 LabelIdentifier:
@@ -122,8 +183,8 @@ LabelIdentifier:
 PrimaryExpression:
 	  PrimaryExpression_NoBrace
 	| ObjectLiteral
-	/*| FunctionExpression
-	| ClassExpression
+	| FunctionExpression
+	/*| ClassExpression
 	| GeneratorExpression
 	| AsyncFunctionExpression*/
 	| RegularExpressionLiteral
@@ -328,17 +389,39 @@ ArgumentList:
 	;
 
 /* todo OptionalExpression */
+OptionalExpression:
+	  MemberExpression OptionalChain
+	| CallExpression OptionalChain
+	| OptionalExpression OptionalChain
+	;
+
+OptionalExpression_NoBrace:
+	  MemberExpression_NoBrace OptionalChain
+	| CallExpression_NoBrace OptionalChain
+	| OptionalExpression_NoBrace OptionalChain
+	;
+
+OptionalChain:
+	  OPTIONAL Arguments
+	| OPTIONAL '[' Expression ']'
+	| OPTIONAL IDENTIFIER
+	| OPTIONAL TemplateLiteral
+	| OptionalChain Arguments
+	| OptionalChain '[' Expression ']'
+	| OptionalChain '.' IDENTIFIER
+	| OptionalChain TemplateLiteral
+	;
 
 LeftHandSideExpression:
 	  NewExpression
 	| CallExpression
-	/* | OptionalExpression */
+	| OptionalExpression
 	;
 
 LeftHandSideExpression_NoBrace:
 	  NewExpression_NoBrace
 	| CallExpression_NoBrace
-	/* | OptionalExpression */
+	| OptionalExpression_NoBrace
 	;
 
 /* 12.4 Update Expressions */
@@ -386,7 +469,9 @@ UnaryExpression_NoBrace:
 /* 12.6 Exponential Operator */
 ExponentialExpression:
 	  UnaryExpression
-	| UpdateExpression STARSTAR ExponentialExpression
+	| UpdateExpression STARSTAR ExponentialExpression {
+		$$ = new BinOpNode($1, $3, Operator::kExp);
+	}
 	;
 
 ExponentialExpression_NoBrace:
@@ -406,9 +491,9 @@ MultiplicativeExpression_NoBrace:
 	;
 
 MultiplicativeOperator:
-	  '*'
-	| '/'
-	| '%'
+	  '*' { $$ = Operator::kMul; }
+	| '/' { $$ = Operator::kDiv; }
+	| '%' { $$ = Operator::kMod; }
 	;
 
 /* 12.8 Additive Operators */
@@ -671,28 +756,37 @@ Statement:
 	| VariableStatement
 	| EmptyStatement
 	| ExpressionStatement
+	| IfStatement
+	| BreakableStatement
+	| ContinueStatement
+	| BreakStatement
+	/* +Return */ | ReturnStatement
+	| WithStatement
+	| LabelledStatement
+	| ThrowStatement
+	| TryStatement
+	| DebuggerStatement
 	;
 
 Declaration:
-	/*  HoistableDeclaration
-	| ClassDeclaration 
-	| */ LexicalDeclaration
-	// | ExportDeclaration
+	  HoistableDeclaration
+	//| ClassDeclaration
+	| LexicalDeclaration
+	//| ExportDeclaration
 	;
 
-/*
 HoistableDeclaration:
 	  FunctionDeclaration
-	| GeneratorDeclaration
-	| AsyncFunctionDeclaration
-	| AsyncGeneratorDeclaration
+	//| GeneratorDeclaration
+	//| AsyncFunctionDeclaration
+	//| AsyncGeneratorDeclaration
 	;
 
 BreakableStatement:
 	  IterationStatement
-	| SwitchStatement
+	//| SwitchStatement
 	;
-*/
+
 
 BlockStatement:
 	  Block
@@ -700,7 +794,7 @@ BlockStatement:
 
 Block:
 	  '{' StatementList '}'
-	/* | '{' '}' */ /* disabled until TODO #1 is fixed. */ 
+	| '{' '}'
 	;
 
 StatementList:
@@ -715,6 +809,7 @@ StatementListItem:
 
 LexicalDeclaration:
 	  LetOrConst BindingList ';'
+	| LetOrConst BindingList error { ASI; }
 	;
 
 LetOrConst:
@@ -734,6 +829,7 @@ LexicalBinding:
 
 VariableStatement:
 	  VAR VariableDeclarationList ';'
+	| VAR VariableDeclarationList error { ASI; }
 	;
 
 VariableDeclarationList:
@@ -821,8 +917,227 @@ EmptyStatement:
  */
 ExpressionStatement:
 	  Expression_NoBrace ';'
-	| Expression_NoBrace error { printf(" -> Absent Semicolon Inserted\n"); }
+	| Expression_NoBrace error { ASI; }
 	;
+
+IfStatement:
+	  IF '(' Expression ')' Statement ELSE Statement
+	| IF '(' Expression ')' Statement %prec PLAIN_IF
+	;
+
+IterationStatement:
+	  DoWhileStatement
+	| WhileStatement
+	| ForStatement
+	//| ForInOfStatement
+	;
+
+DoWhileStatement: /* [Yield, Await, Return] */
+	  DO Statement /* [?Yield, ?Await, ?Return] */ WHILE '('
+	  Expression /* [+In, ?Yield, ?Await] */ ')' ';'
+	;
+
+WhileStatement: /* [Yield, Await, Return] */
+	  WHILE '(' Expression /* [+In, ?Yield, ?Await] */ ')'
+	  Statement /* [?Yield, ?Await, ?Return] */
+	;
+
+/*
+ForStatement[Yield, Await, Return] :
+	for ( [lookahead ≠ let [] Expression[~In, ?Yield, ?Await]opt ;
+	    Expression[+In, ?Yield, ?Await]opt ;
+	    Expression[+In, ?Yield, ?Await]opt )
+	    Statement[?Yield, ?Await, ?Return]
+	for ( var VariableDeclarationList[~In, ?Yield, ?Await] ;
+	    Expression[+In, ?Yield, ?Await]opt ;
+	    Expression[+In, ?Yield, ?Await]opt )
+	    Statement[?Yield, ?Await, ?Return]
+	for ( LexicalDeclaration[~In, ?Yield, ?Await]
+	    Expression[+In, ?Yield, ?Await]opt ;
+	    Expression[+In, ?Yield, ?Await]opt )
+	    Statement[?Yield, ?Await, ?Return]
+*/
+
+ForStatement: /* [Yield, Await, Return] */
+	  FOR '(' ExpressionOpt ';' ExpressionOpt ';' ExpressionOpt ')'
+	  Statement
+	| FOR '(' VAR VariableDeclarationList ';' ExpressionOpt ';'
+	  ExpressionOpt ')' Statement
+	| FOR '(' LexicalDeclaration ExpressionOpt ';' ExpressionOpt ')'
+	  Statement
+	;
+
+ExpressionOpt:
+	  Expression
+	| %empty
+	;
+
+/*
+ForInOfStatement[Yield, Await, Return] :
+	for ( [lookahead ≠ let [] LeftHandSideExpression[?Yield, ?Await] in
+	    Expression[+In, ?Yield, ?Await] ) Statement[?Yield, ?Await, ?Return]
+	for ( var ForBinding[?Yield, ?Await] in Expression[+In, ?Yield, ?Await]
+	    ) Statement[?Yield, ?Await, ?Return]
+	for ( ForDeclaration[?Yield, ?Await] in Expression[+In, ?Yield, ?Await]
+	    ) Statement[?Yield, ?Await, ?Return]
+	for ( [lookahead ∉ { let, async of }]
+	    LeftHandSideExpression[?Yield, ?Await] of
+	    AssignmentExpression[+In, ?Yield, ?Await] )
+	    Statement[?Yield, ?Await, ?Return]
+	for ( var ForBinding[?Yield, ?Await] of
+	    AssignmentExpression[+In, ?Yield, ?Await]
+	    ) Statement[?Yield, ?Await, ?Return]
+	for ( ForDeclaration[?Yield, ?Await] of
+	    AssignmentExpression[+In, ?Yield, ?Await] )
+	    Statement[?Yield, ?Await, ?Return]
+	[+Await] for await ( [lookahead ≠ let]
+	    LeftHandSideExpression[?Yield, ?Await] of
+	    AssignmentExpression[+In, ?Yield, ?Await] )
+	    Statement[?Yield, ?Await, ?Return]
+	[+Await] for await ( var ForBinding[?Yield, ?Await] of
+	    AssignmentExpression[+In, ?Yield, ?Await] )
+	    Statement[?Yield, ?Await, ?Return]
+	[+Await] for await ( ForDeclaration[?Yield, ?Await] of
+	    AssignmentExpression[+In, ?Yield, ?Await] )
+	    Statement[?Yield, ?Await, ?Return]
+*/
+
+/*
+ForDeclaration[Yield, Await] :
+	LetOrConst ForBinding[?Yield, ?Await]
+
+ForBinding[Yield, Await] :
+	BindingIdentifier[?Yield, ?Await]
+	BindingPattern[?Yield, ?Await]
+*/
+
+ContinueStatement:
+	  CONTINUE ';'
+	| CONTINUE /* [no LineTerminator here] */ LabelIdentifier ';'
+	;
+
+BreakStatement:
+	  BREAK ';'
+	| BREAK /* [no LineTerminator here] */ LabelIdentifier ';'
+	;
+
+ReturnStatement:
+	  RETURN ';'
+	| RETURN /* [no LineTerminator here] */ Expression ';'
+	;
+
+WithStatement:
+	  WITH '(' Expression ')' Statement
+	;
+
+/*
+SwitchStatement[Yield, Await, Return] :
+switch ( Expression[+In, ?Yield, ?Await] ) CaseBlock[?Yield, ?Await, ?Return]
+
+CaseBlock[Yield, Await, Return] :
+{ CaseClauses[?Yield, ?Await, ?Return]opt }
+{ CaseClauses[?Yield, ?Await, ?Return]opt DefaultClause[?Yield, ?Await, ?Return] CaseClauses[?Yield, ?Await, ?Return]opt }
+
+CaseClauses[Yield, Await, Return] :
+CaseClause[?Yield, ?Await, ?Return]
+CaseClauses[?Yield, ?Await, ?Return] CaseClause[?Yield, ?Await, ?Return]
+
+CaseClause[Yield, Await, Return] :
+case Expression[+In, ?Yield, ?Await] : StatementList[?Yield, ?Await, ?Return]opt
+
+DefaultClause[Yield, Await, Return] :
+default : StatementList[?Yield, ?Await, ?Return]opt
+*/
+
+LabelledStatement:
+	LabelIdentifier ':' LabelledItem;
+
+LabelledItem:
+	  Statement
+	//| FunctionDeclaration
+	;
+
+ThrowStatement:
+	  THROW /* [no LineTerminator here] */ Expression ';'
+	;
+
+TryStatement:
+	  TRY Block Catch
+	| TRY Block Finally
+	| TRY Block Catch Finally
+	;
+
+Catch:
+	  CATCH '(' CatchParameter ')' Block
+	| CATCH Block
+	;
+
+Finally:
+	  FINALLY Block
+	;
+
+CatchParameter:
+	  BindingIdentifier
+	| BindingPattern
+	;
+
+DebuggerStatement:
+	  DEBUGGER ';'
+	;
+
+/* 15 Functions and Classes */
+
+/* 15.1 Parameter Lists */
+
+UniqueFormalParameters:
+	  FormalParameters
+	;
+
+FormalParameters:
+	  %empty
+	| FunctionRestParameter
+	| FormalParameterList
+	| FormalParameterList ','
+	| FormalParameterList ',' FunctionRestParameter
+	;
+
+
+FormalParameterList:
+	  FormalParameter
+	| FormalParameterList ',' FormalParameter
+	;
+
+FunctionRestParameter:
+	BindingRestElement
+	;
+
+FormalParameter:
+	BindingElement
+	;
+
+/* 15.2 Function Definitions */
+
+FunctionDeclaration:
+	  FUNCTION BindingIdentifier '(' FormalParameters ')' '{' FunctionBody
+	  '}'
+	| FUNCTION '(' FormalParameters ')' '{' FunctionBody '}'
+	;
+
+FunctionExpression:
+	  FUNCTION BindingIdentifier '(' FormalParameters ')' '{' FunctionBody
+	  '}'
+	| FUNCTION '(' FormalParameters ')' '{' FunctionBody '}'
+	;
+
+FunctionBody:
+	FunctionStatementList
+	;
+
+FunctionStatementList:
+	  StatementList
+	| %empty
+	;
+
 
 Script:
 	  ScriptBody
@@ -903,11 +1218,4 @@ int
 jslex(JSSTYPE *yylval, JSLTYPE *loc, Driver * driver)
 {
 	return true_jslex(yylval, loc, driver->scanner, driver);
-}
-
-static YYSTYPE
-assign_merge (YYSTYPE pattern, YYSTYPE regular)
-{
-	printf("\n\nWANT TO CHIOOSE BETWEEN!!\n\n");
-	return regular;
 }

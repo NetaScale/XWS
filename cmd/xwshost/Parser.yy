@@ -1,5 +1,5 @@
 /*
- * These coded instructions, statements, and computer programs contain
+ * These coded instructions, Stmts, and computer programs contain
  * software derived from the following specification:
  *
  * ECMA-262, 11th edition, June 2020: ECMAScript® 2020 Language Specification
@@ -106,53 +106,53 @@ jslex(JSSTYPE *yylval, JSLTYPE *loc, Driver * driver);
 
 %type <exprNode> IdentifierReference BindingIdentifier LabelIdentifier
 
-%type <exprNode> PrimaryExpression PrimaryExpression_NoBrace
+%type <exprNode> PrimaryExpr PrimaryExpr_NoBrace
 %type <exprNode> Literal
 
-%type <exprNode> MemberExpression MemberExpression_NoBrace
+%type <exprNode> MemberExpr MemberExpr_NoBrace
 %type <exprNode> SuperProperty SuperCall
-%type <exprNode> NewExpression NewExpression_NoBrace
-%type <exprNode> CallExpression CallExpression_NoBrace
-%type <exprNode> OptionalExpression OptionalExpression_NoBrace
-%type <exprNode> LeftHandSideExpression LeftHandSideExpression_NoBrace
-%type <exprNode> UpdateExpression UpdateExpression_NoBrace
-%type <exprNode> UnaryExpression UnaryExpression_NoBrace
-%type <exprNode> ExponentialExpression ExponentialExpression_NoBrace
+%type <exprNode> NewExpr NewExpr_NoBrace
+%type <exprNode> CallExpr CallExpr_NoBrace
+%type <exprNode> OptionalExpr OptionalExpr_NoBrace
+%type <exprNode> LeftHandSideExpr LeftHandSideExpr_NoBrace
+%type <exprNode> UpdateExpr UpdateExpr_NoBrace
+%type <exprNode> UnaryExpr UnaryExpr_NoBrace
+%type <exprNode> ExponentialExpr ExponentialExpr_NoBrace
 
 %type <opVal> MultiplicativeOperator
-%type <exprNode> MultiplicativeExpression MultiplicativeExpression_NoBrace
-%type <exprNode> AdditiveExpression AdditiveExpression_NoBrace
-%type <exprNode> ShiftExpression ShiftExpression_NoBrace
-%type <exprNode> RelationalExpression RelationalExpression_NoBrace
-%type <exprNode> EqualityExpression EqualityExpression_NoBrace
-%type <exprNode> BitwiseANDExpression BitwiseANDExpression_NoBrace
-%type <exprNode> BitwiseORExpression BitwiseORExpression_NoBrace
-%type <exprNode> BitwiseXORExpression BitwiseXORExpression_NoBrace
-%type <exprNode> LogicalANDExpression LogicalANDExpression_NoBrace
-%type <exprNode> LogicalORExpression LogicalORExpression_NoBrace
-%type <exprNode> CoalesceExpression CoalesceExpression_NoBrace
-%type <exprNode> CoalesceExpressionHead CoalesceExpressionHead_NoBrace
-%type <exprNode> ShortCircuitExpression ShortCircuitExpression_NoBrace
-%type <exprNode> ConditionalExpression ConditionalExpression_NoBrace
-%type <exprNode> AssignmentExpression AssignmentExpression_NoBrace
-%type <exprNode> Expression Expression_NoBrace
+%type <exprNode> MultiplicativeExpr MultiplicativeExpr_NoBrace
+%type <exprNode> AdditiveExpr AdditiveExpr_NoBrace
+%type <exprNode> ShiftExpr ShiftExpr_NoBrace
+%type <exprNode> RelationalExpr RelationalExpr_NoBrace
+%type <exprNode> EqualityExpr EqualityExpr_NoBrace
+%type <exprNode> BitwiseANDExpr BitwiseANDExpr_NoBrace
+%type <exprNode> BitwiseORExpr BitwiseORExpr_NoBrace
+%type <exprNode> BitwiseXORExpr BitwiseXORExpr_NoBrace
+%type <exprNode> LogicalANDExpr LogicalANDExpr_NoBrace
+%type <exprNode> LogicalORExpr LogicalORExpr_NoBrace
+%type <exprNode> CoalesceExpr CoalesceExpr_NoBrace
+%type <exprNode> CoalesceExprHead CoalesceExprHead_NoBrace
+%type <exprNode> ShortCircuitExpr ShortCircuitExpr_NoBrace
+%type <exprNode> ConditionalExpr ConditionalExpr_NoBrace
+%type <exprNode> AssignmentExpr AssignmentExpr_NoBrace
+%type <exprNode> Expr Expr_NoBrace
 
-%type <stmtNode> Block BlockStatement VariableStatement EmptyStatement
-%type <stmtNode> ExpressionStatement IfStatement BreakableStatement
-%type <stmtNode> ContinueStatement BreakStatement ReturnStatement WithStatement
-%type <stmtNode> LabelledStatement ThrowStatement TryStatement DebuggerStatement
-%type <stmtNode> Statement LabelledItem
+%type <stmtNode> Block BlockStmt VariableStmt EmptyStmt
+%type <stmtNode> ExprStmt IfStmt BreakableStmt
+%type <stmtNode> ContinueStmt BreakStmt ReturnStmt WithStmt
+%type <stmtNode> LabelledStmt ThrowStmt TryStmt DebuggerStmt
+%type <stmtNode> Stmt LabelledItem
 
 
 %%
 
-/* 11.8.5 Regular Expression Literals */
-RegularExpressionLiteral:
+/* 11.8.5 Regular Expr Literals */
+RegularExprLiteral:
 	  '/' { printf("Matching Regex\n"); } REGEXBODY '/' REGEXFLAGS
 	;
 
 /*
- * 12 Expressions
+ * 12 Exprs
  */
 
 /* Lexical */
@@ -185,35 +185,35 @@ LabelIdentifier:
 	  IdentifierNotReserved { $$ = new IdentifierNode(@1, $1); }
 	;
 
-/* 12.2 Primary Expression */
+/* 12.2 Primary Expr */
 
-PrimaryExpression:
-	  PrimaryExpression_NoBrace
+PrimaryExpr:
+	  PrimaryExpr_NoBrace
 	| ObjectLiteral
-	| FunctionExpression
-	/*| ClassExpression
-	| GeneratorExpression
-	| AsyncFunctionExpression*/
-	| RegularExpressionLiteral
+	| FunctionExpr
+	/*| ClassExpr
+	| GeneratorExpr
+	| AsyncFunctionExpr*/
+	| RegularExprLiteral
 	| TemplateLiteral
 	;
 
-PrimaryExpression_NoBrace:
+PrimaryExpr_NoBrace:
 	  THIS
 	| IdentifierReference
 	| Literal
 	| ArrayLiteral
-	| CoverParenthesisedExpressionAndArrowParameterList
+	| CoverParenthesisedExprAndArrowParameterList
 	;
 
-CoverParenthesisedExpressionAndArrowParameterList:
-	  '(' Expression ')'
-	| '(' Expression ',' ')'
+CoverParenthesisedExprAndArrowParameterList:
+	  '(' Expr ')'
+	| '(' Expr ',' ')'
 	| '(' ')'
 	| '(' ELLIPSIS BindingIdentifier ')'
 	| '(' ELLIPSIS BindingPattern ')'
-	| '(' Expression ',' ELLIPSIS BindingIdentifier ')'
-	| '(' Expression ',' ELLIPSIS BindingPattern ')'
+	| '(' Expr ',' ELLIPSIS BindingIdentifier ')'
+	| '(' Expr ',' ELLIPSIS BindingPattern ')'
 	;
 
 /* 12.2.4 Literals */
@@ -234,12 +234,12 @@ ArrayLiteral:
 	;
 
 ElementList:
-	  Elision AssignmentExpression
-	| AssignmentExpression
+	  Elision AssignmentExpr
+	| AssignmentExpr
 	| Elision SpreadElement
 	| SpreadElement
-	| ElementList ',' Elision AssignmentExpression
-	| ElementList ',' AssignmentExpression
+	| ElementList ',' Elision AssignmentExpr
+	| ElementList ',' AssignmentExpr
 	| ElementList ',' Elision SpreadElement
 	| ElementList ',' SpreadElement
 	;
@@ -250,7 +250,7 @@ Elision:
 	;
 
 SpreadElement:
-	  ELLIPSIS AssignmentExpression
+	  ELLIPSIS AssignmentExpr
 	;
 
 /* 12.2.6 Object Initialiser */
@@ -268,9 +268,9 @@ PropertyDefinitionList:
 PropertyDefinition:
 	  IdentifierReference
 	| CoverInitializedName
-	| PropertyName ':' AssignmentExpression
+	| PropertyName ':' AssignmentExpr
 	/*| MethodDefinition*/
-	| ELLIPSIS AssignmentExpression
+	| ELLIPSIS AssignmentExpr
 	;
 
 PropertyName:
@@ -285,7 +285,7 @@ LiteralPropertyName:
 	;
 
 ComputedPropertyName:
-	  '[' AssignmentExpression ']'
+	  '[' AssignmentExpr ']'
 	;
 
 CoverInitializedName:
@@ -293,44 +293,44 @@ CoverInitializedName:
 	;
 
 Initialiser:
-	  '=' AssignmentExpression
+	  '=' AssignmentExpr
 	;
 
 TemplateLiteral:
 	  UNMATCHABLE /* todo */
 	;
 
-/* 12.3 Left-Hand-Side Expressions */
-MemberExpression:
-	  PrimaryExpression
-	| MemberExpression '[' Expression ']' {
+/* 12.3 Left-Hand-Side Exprs */
+MemberExpr:
+	  PrimaryExpr
+	| MemberExpr '[' Expr ']' {
 		$$ = new AccessorNode($1, $3);
 	}
-	| MemberExpression '.' IDENTIFIER {
+	| MemberExpr '.' IDENTIFIER {
 		$$ = new AccessorNode($1, new IdentifierNode(@3, $3));
 	}
-	// | MemberExpression TemplateLiteral
+	// | MemberExpr TemplateLiteral
 	| SuperProperty
 	| MetaProperty
-	| NEW MemberExpression Arguments
+	| NEW MemberExpr Arguments
 	;
 
-MemberExpression_NoBrace:
-	  PrimaryExpression_NoBrace
-	| MemberExpression_NoBrace '[' Expression ']' {
+MemberExpr_NoBrace:
+	  PrimaryExpr_NoBrace
+	| MemberExpr_NoBrace '[' Expr ']' {
 		$$ = new AccessorNode($1, $3);
 	}
-	| MemberExpression_NoBrace '.' IDENTIFIER {
+	| MemberExpr_NoBrace '.' IDENTIFIER {
 		$$ = new AccessorNode($1, new IdentifierNode(@3, $3));
 	}
-	//| MemberExpression_NoBrace TemplateLiteral
+	//| MemberExpr_NoBrace TemplateLiteral
 	| SuperProperty
 	| MetaProperty
-	| NEW MemberExpression Arguments
+	| NEW MemberExpr Arguments
 	;
 
 SuperProperty:
-	  SUPER '[' Expression ']' {
+	  SUPER '[' Expr ']' {
 		$$ = new AccessorNode(new SuperNode(@1), $3);
 	}
 	| SUPER '.' IDENTIFIER {
@@ -352,56 +352,56 @@ ImportMeta:
 	  IMPORT '.' META
 	;
 
-NewExpression:
-	  MemberExpression
-	| NEW NewExpression {
+NewExpr:
+	  MemberExpr
+	| NEW NewExpr {
 		$$ = new NewExprNode(@1, $2);
 	}
 	;
 
-NewExpression_NoBrace:
-	  MemberExpression_NoBrace
-	| NEW NewExpression {
+NewExpr_NoBrace:
+	  MemberExpr_NoBrace
+	| NEW NewExpr {
 		$$ = new NewExprNode(@1, $2);
 	}
 	;
 
-CallExpression:
-	  CallMemberExpression
+CallExpr:
+	  CallMemberExpr
 	| SuperCall
-	| CallExpression Arguments
-	| CallExpression '[' Expression ']' {
+	| CallExpr Arguments
+	| CallExpr '[' Expr ']' {
 		$$ = new AccessorNode($1, $3);
 	}
-	| CallExpression '.' IDENTIFIER {
+	| CallExpr '.' IDENTIFIER {
 		$$ = new AccessorNode($1, new IdentifierNode(@3, $3));
 	}
-	| CallExpression TemplateLiteral {
+	| CallExpr TemplateLiteral {
 		UNIMPLEMENTED;
 	}
 	;
 
-CallExpression_NoBrace:
-	  CallMemberExpression_NoBrace
+CallExpr_NoBrace:
+	  CallMemberExpr_NoBrace
 	| SuperCall
-	| CallExpression_NoBrace Arguments
-	| CallExpression_NoBrace '[' Expression ']' {
+	| CallExpr_NoBrace Arguments
+	| CallExpr_NoBrace '[' Expr ']' {
 		$$ = new AccessorNode($1, $3);
 	}
-	| CallExpression_NoBrace '.' IDENTIFIER {
+	| CallExpr_NoBrace '.' IDENTIFIER {
 		$$ = new AccessorNode($1, new IdentifierNode(@3, $3));
 	}
-	| CallExpression_NoBrace TemplateLiteral {
+	| CallExpr_NoBrace TemplateLiteral {
 		UNIMPLEMENTED;
 	}
 	;
 
-CallMemberExpression:
-	  MemberExpression Arguments
+CallMemberExpr:
+	  MemberExpr Arguments
 	;
 
-CallMemberExpression_NoBrace:
-	  MemberExpression_NoBrace Arguments
+CallMemberExpr_NoBrace:
+	  MemberExpr_NoBrace Arguments
 	;
 
 SuperCall:
@@ -409,7 +409,7 @@ SuperCall:
 	;
 
 ImportCall:
-	  IMPORT '(' AssignmentExpression ')'
+	  IMPORT '(' AssignmentExpr ')'
 	;
 
 Arguments:
@@ -418,118 +418,118 @@ Arguments:
 	;
 
 ArgumentList:
-	  AssignmentExpression
-	| ELLIPSIS AssignmentExpression
-	| ArgumentList ',' AssignmentExpression
-	| ArgumentList ',' ELLIPSIS AssignmentExpression
+	  AssignmentExpr
+	| ELLIPSIS AssignmentExpr
+	| ArgumentList ',' AssignmentExpr
+	| ArgumentList ',' ELLIPSIS AssignmentExpr
 	;
 
-/* todo OptionalExpression */
-OptionalExpression:
-	  MemberExpression OptionalChain
-	| CallExpression OptionalChain
-	| OptionalExpression OptionalChain
+/* todo OptionalExpr */
+OptionalExpr:
+	  MemberExpr OptionalChain
+	| CallExpr OptionalChain
+	| OptionalExpr OptionalChain
 	;
 
-OptionalExpression_NoBrace:
-	  MemberExpression_NoBrace OptionalChain
-	| CallExpression_NoBrace OptionalChain
-	| OptionalExpression_NoBrace OptionalChain
+OptionalExpr_NoBrace:
+	  MemberExpr_NoBrace OptionalChain
+	| CallExpr_NoBrace OptionalChain
+	| OptionalExpr_NoBrace OptionalChain
 	;
 
 OptionalChain:
 	  OPTIONAL Arguments
-	| OPTIONAL '[' Expression ']'
+	| OPTIONAL '[' Expr ']'
 	| OPTIONAL IDENTIFIER
 	| OPTIONAL TemplateLiteral
 	| OptionalChain Arguments
-	| OptionalChain '[' Expression ']'
+	| OptionalChain '[' Expr ']'
 	| OptionalChain '.' IDENTIFIER
 	| OptionalChain TemplateLiteral
 	;
 
-LeftHandSideExpression:
-	  NewExpression
-	| CallExpression
-	| OptionalExpression
+LeftHandSideExpr:
+	  NewExpr
+	| CallExpr
+	| OptionalExpr
 	;
 
-LeftHandSideExpression_NoBrace:
-	  NewExpression_NoBrace
-	| CallExpression_NoBrace
-	| OptionalExpression_NoBrace
+LeftHandSideExpr_NoBrace:
+	  NewExpr_NoBrace
+	| CallExpr_NoBrace
+	| OptionalExpr_NoBrace
 	;
 
-/* 12.4 Update Expressions */
-UpdateExpression:
-	  LeftHandSideExpression
-	| LeftHandSideExpression PLUSPLUS
-	| LeftHandSideExpression MINUSMINUS
-	| PLUSPLUS UnaryExpression
-	| MINUSMINUS UnaryExpression
+/* 12.4 Update Exprs */
+UpdateExpr:
+	  LeftHandSideExpr
+	| LeftHandSideExpr PLUSPLUS
+	| LeftHandSideExpr MINUSMINUS
+	| PLUSPLUS UnaryExpr
+	| MINUSMINUS UnaryExpr
 	;
 
-UpdateExpression_NoBrace:
-	  LeftHandSideExpression_NoBrace
-	| LeftHandSideExpression_NoBrace PLUSPLUS
-	| LeftHandSideExpression_NoBrace MINUSMINUS
-	| PLUSPLUS UnaryExpression
-	| MINUSMINUS UnaryExpression
+UpdateExpr_NoBrace:
+	  LeftHandSideExpr_NoBrace
+	| LeftHandSideExpr_NoBrace PLUSPLUS
+	| LeftHandSideExpr_NoBrace MINUSMINUS
+	| PLUSPLUS UnaryExpr
+	| MINUSMINUS UnaryExpr
 	;
 
 /* 12.5 Unary Operators */
-UnaryExpression:
-	  UpdateExpression
-	| DELETE UnaryExpression
-	| VOID UnaryExpression
-	| TYPEOF UnaryExpression
-	| '+' UnaryExpression
-	| '-' UnaryExpression
-	| '~' UnaryExpression
-	| '!' UnaryExpression
-	/* | AwaitExpression */
+UnaryExpr:
+	  UpdateExpr
+	| DELETE UnaryExpr
+	| VOID UnaryExpr
+	| TYPEOF UnaryExpr
+	| '+' UnaryExpr
+	| '-' UnaryExpr
+	| '~' UnaryExpr
+	| '!' UnaryExpr
+	/* | AwaitExpr */
 	;
 
-UnaryExpression_NoBrace:
-	  UpdateExpression_NoBrace
-	| DELETE UnaryExpression
-	| VOID UnaryExpression
-	| TYPEOF UnaryExpression
-	| '+' UnaryExpression
-	| '-' UnaryExpression
-	| '~' UnaryExpression
-	| '!' UnaryExpression
-	/* | AwaitExpression */
+UnaryExpr_NoBrace:
+	  UpdateExpr_NoBrace
+	| DELETE UnaryExpr
+	| VOID UnaryExpr
+	| TYPEOF UnaryExpr
+	| '+' UnaryExpr
+	| '-' UnaryExpr
+	| '~' UnaryExpr
+	| '!' UnaryExpr
+	/* | AwaitExpr */
 	;
 
 /* 12.6 Exponential Operator */
-ExponentialExpression:
-	  UnaryExpression
-	| UpdateExpression STARSTAR ExponentialExpression {
+ExponentialExpr:
+	  UnaryExpr
+	| UpdateExpr STARSTAR ExponentialExpr {
 		$$ = new BinOpNode($1, $3, Operator::kExp);
 	}
 	;
 
-ExponentialExpression_NoBrace:
-	  UnaryExpression_NoBrace
-	| UpdateExpression_NoBrace STARSTAR ExponentialExpression {
+ExponentialExpr_NoBrace:
+	  UnaryExpr_NoBrace
+	| UpdateExpr_NoBrace STARSTAR ExponentialExpr {
 		$$ = new BinOpNode($1, $3, Operator::kExp);
 	}
 	;
 
 /* 12.7 Multiplicative Operators */
-MultiplicativeExpression:
-	  ExponentialExpression
-	| MultiplicativeExpression MultiplicativeOperator
-	  ExponentialExpression {
+MultiplicativeExpr:
+	  ExponentialExpr
+	| MultiplicativeExpr MultiplicativeOperator
+	  ExponentialExpr {
 		$$ = new BinOpNode($1, $3, $2);
 	}
 	;
 
-MultiplicativeExpression_NoBrace:
-	  ExponentialExpression_NoBrace
-	| MultiplicativeExpression_NoBrace MultiplicativeOperator
-	  ExponentialExpression {
+MultiplicativeExpr_NoBrace:
+	  ExponentialExpr_NoBrace
+	| MultiplicativeExpr_NoBrace MultiplicativeOperator
+	  ExponentialExpr {
 		$$ = new BinOpNode($1, $3, $2);
 	}
 	;
@@ -541,268 +541,268 @@ MultiplicativeOperator:
 	;
 
 /* 12.8 Additive Operators */
-AdditiveExpression:
-	  MultiplicativeExpression
-	| AdditiveExpression '+' MultiplicativeExpression {
+AdditiveExpr:
+	  MultiplicativeExpr
+	| AdditiveExpr '+' MultiplicativeExpr {
 		$$ = new BinOpNode($1, $3, Operator::kAdd);
 	}
-	| AdditiveExpression '-' MultiplicativeExpression {
+	| AdditiveExpr '-' MultiplicativeExpr {
 		$$ = new BinOpNode($1, $3, Operator::kSub);
 	}
 	;
 
-AdditiveExpression_NoBrace:
-	  MultiplicativeExpression_NoBrace
-	| AdditiveExpression_NoBrace '+' MultiplicativeExpression {
+AdditiveExpr_NoBrace:
+	  MultiplicativeExpr_NoBrace
+	| AdditiveExpr_NoBrace '+' MultiplicativeExpr {
 		$$ = new BinOpNode($1, $3, Operator::kAdd);
 	}
-	| AdditiveExpression_NoBrace '-' MultiplicativeExpression {
+	| AdditiveExpr_NoBrace '-' MultiplicativeExpr {
 		$$ = new BinOpNode($1, $3, Operator::kSub);
 	}
 	;
 
 /* 12.9 Bitwise Shift Operators */
-ShiftExpression:
-	  AdditiveExpression
-	| ShiftExpression LSHIFT AdditiveExpression{
+ShiftExpr:
+	  AdditiveExpr
+	| ShiftExpr LSHIFT AdditiveExpr{
 		$$ = new BinOpNode($1, $3, Operator::kLShift);
 	}
-	| ShiftExpression RSHIFT AdditiveExpression {
+	| ShiftExpr RSHIFT AdditiveExpr {
 		$$ = new BinOpNode($1, $3, Operator::kRShift);
 	}
-	| ShiftExpression URSHIFT AdditiveExpression {
+	| ShiftExpr URSHIFT AdditiveExpr {
 		$$ = new BinOpNode($1, $3, Operator::kURShift);
 	}
 	;
 
-ShiftExpression_NoBrace:
-	  AdditiveExpression_NoBrace
-	| ShiftExpression_NoBrace LSHIFT AdditiveExpression {
+ShiftExpr_NoBrace:
+	  AdditiveExpr_NoBrace
+	| ShiftExpr_NoBrace LSHIFT AdditiveExpr {
 		$$ = new BinOpNode($1, $3, Operator::kLShift);
 	}
-	| ShiftExpression_NoBrace RSHIFT AdditiveExpression {
+	| ShiftExpr_NoBrace RSHIFT AdditiveExpr {
 		$$ = new BinOpNode($1, $3, Operator::kRShift);
 	}
-	| ShiftExpression_NoBrace URSHIFT AdditiveExpression {
+	| ShiftExpr_NoBrace URSHIFT AdditiveExpr {
 		$$ = new BinOpNode($1, $3, Operator::kURShift);
 	}
 	;
 
 /* 12.10 Relational Operators */
-RelationalExpression:
-	  ShiftExpression
-	| RelationalExpression '<' ShiftExpression {
+RelationalExpr:
+	  ShiftExpr
+	| RelationalExpr '<' ShiftExpr {
 		$$ = new BinOpNode($1, $3, Operator::kLessThan);
 	}
-	| RelationalExpression '>' ShiftExpression {
+	| RelationalExpr '>' ShiftExpr {
 		$$ = new BinOpNode($1, $3, Operator::kGreaterThan);
 	}
-	| RelationalExpression LTE ShiftExpression {
+	| RelationalExpr LTE ShiftExpr {
 		$$ = new BinOpNode($1, $3, Operator::kLessThanOrEq);
 	}
-	| RelationalExpression GTE ShiftExpression {
+	| RelationalExpr GTE ShiftExpr {
 		$$ = new BinOpNode($1, $3, Operator::kGreaterThanOrEq);
 	}
-	| RelationalExpression INSTANCEOF ShiftExpression {
+	| RelationalExpr INSTANCEOF ShiftExpr {
 		$$ = new BinOpNode($1, $3, Operator::kInstanceOf);
 	}
-	| RelationalExpression IN ShiftExpression {
+	| RelationalExpr IN ShiftExpr {
 		$$ = new BinOpNode($1, $3, Operator::kAmong);
 	}
 	;
 
-RelationalExpression_NoBrace:
-	  ShiftExpression_NoBrace
-	| RelationalExpression_NoBrace '<' ShiftExpression {
+RelationalExpr_NoBrace:
+	  ShiftExpr_NoBrace
+	| RelationalExpr_NoBrace '<' ShiftExpr {
 		$$ = new BinOpNode($1, $3, Operator::kLessThan);
 	}
-	| RelationalExpression_NoBrace '>' ShiftExpression {
+	| RelationalExpr_NoBrace '>' ShiftExpr {
 		$$ = new BinOpNode($1, $3, Operator::kGreaterThan);
 	}
-	| RelationalExpression_NoBrace LTE ShiftExpression {
+	| RelationalExpr_NoBrace LTE ShiftExpr {
 		$$ = new BinOpNode($1, $3, Operator::kLessThanOrEq);
 	}
-	| RelationalExpression_NoBrace GTE ShiftExpression {
+	| RelationalExpr_NoBrace GTE ShiftExpr {
 		$$ = new BinOpNode($1, $3, Operator::kGreaterThanOrEq);
 	}
-	| RelationalExpression_NoBrace INSTANCEOF ShiftExpression {
+	| RelationalExpr_NoBrace INSTANCEOF ShiftExpr {
 		$$ = new BinOpNode($1, $3, Operator::kInstanceOf);
 	}
-	| RelationalExpression_NoBrace IN ShiftExpression {
+	| RelationalExpr_NoBrace IN ShiftExpr {
 		$$ = new BinOpNode($1, $3, Operator::kAmong);
 	}
 	;
 
 /* 12.11 Equality Operators */
-EqualityExpression:
-	  RelationalExpression
-	| EqualityExpression EQ RelationalExpression {
+EqualityExpr:
+	  RelationalExpr
+	| EqualityExpr EQ RelationalExpr {
 		$$ = new BinOpNode($1, $3, Operator::kEquals);
 	}
-	| EqualityExpression NEQ RelationalExpression {
+	| EqualityExpr NEQ RelationalExpr {
 		$$ = new BinOpNode($1, $3, Operator::kNotEquals);
 	}
-	| EqualityExpression STRICTEQ RelationalExpression {
+	| EqualityExpr STRICTEQ RelationalExpr {
 		$$ = new BinOpNode($1, $3, Operator::kStrictEquals);
 	}
-	| EqualityExpression STRICTNEQ RelationalExpression {
+	| EqualityExpr STRICTNEQ RelationalExpr {
 		$$ = new BinOpNode($1, $3, Operator::kStrictNotEquals);
 	}
 	;
 
-EqualityExpression_NoBrace:
-	  RelationalExpression_NoBrace
-	| EqualityExpression_NoBrace EQ RelationalExpression {
+EqualityExpr_NoBrace:
+	  RelationalExpr_NoBrace
+	| EqualityExpr_NoBrace EQ RelationalExpr {
 		$$ = new BinOpNode($1, $3, Operator::kEquals);
 	}
-	| EqualityExpression_NoBrace NEQ RelationalExpression {
+	| EqualityExpr_NoBrace NEQ RelationalExpr {
 		$$ = new BinOpNode($1, $3, Operator::kNotEquals);
 	}
-	| EqualityExpression_NoBrace STRICTEQ RelationalExpression {
+	| EqualityExpr_NoBrace STRICTEQ RelationalExpr {
 		$$ = new BinOpNode($1, $3, Operator::kStrictEquals);
 	}
-	| EqualityExpression_NoBrace STRICTNEQ RelationalExpression {
+	| EqualityExpr_NoBrace STRICTNEQ RelationalExpr {
 		$$ = new BinOpNode($1, $3, Operator::kStrictNotEquals);
 	}
 	;
 
 /* 12.12 Binary Bitwise Operators */
-BitwiseANDExpression:
-	  EqualityExpression
-	| BitwiseANDExpression '&' EqualityExpression {
+BitwiseANDExpr:
+	  EqualityExpr
+	| BitwiseANDExpr '&' EqualityExpr {
 		$$ = new BinOpNode($1, $3, Operator::kBitAnd);
 	}
 	;
 
-BitwiseANDExpression_NoBrace:
-	  EqualityExpression_NoBrace
-	| BitwiseANDExpression_NoBrace '&' EqualityExpression {
+BitwiseANDExpr_NoBrace:
+	  EqualityExpr_NoBrace
+	| BitwiseANDExpr_NoBrace '&' EqualityExpr {
 		$$ = new BinOpNode($1, $3, Operator::kBitAnd);
 	}
 	;
 
-BitwiseXORExpression:
-	  BitwiseANDExpression
-	| BitwiseXORExpression '^' BitwiseANDExpression {
+BitwiseXORExpr:
+	  BitwiseANDExpr
+	| BitwiseXORExpr '^' BitwiseANDExpr {
 		$$ = new BinOpNode($1, $3, Operator::kBitXor);
 	}
 	;
 
-BitwiseXORExpression_NoBrace:
-	  BitwiseANDExpression_NoBrace
-	| BitwiseXORExpression_NoBrace '^' BitwiseANDExpression {
+BitwiseXORExpr_NoBrace:
+	  BitwiseANDExpr_NoBrace
+	| BitwiseXORExpr_NoBrace '^' BitwiseANDExpr {
 		$$ = new BinOpNode($1, $3, Operator::kBitXor);
 	}
 	;
 
-BitwiseORExpression:
-	  BitwiseXORExpression
-	| BitwiseORExpression '|' BitwiseXORExpression {
+BitwiseORExpr:
+	  BitwiseXORExpr
+	| BitwiseORExpr '|' BitwiseXORExpr {
 		$$ = new BinOpNode($1, $3, Operator::kBitOr);
 	}
 	;
 
-BitwiseORExpression_NoBrace:
-	  BitwiseXORExpression_NoBrace
-	| BitwiseORExpression_NoBrace '|' BitwiseXORExpression {
+BitwiseORExpr_NoBrace:
+	  BitwiseXORExpr_NoBrace
+	| BitwiseORExpr_NoBrace '|' BitwiseXORExpr {
 		$$ = new BinOpNode($1, $3, Operator::kBitOr);
 	}
 	;
 
 /* 12.13 Binary Logical Operators */
-LogicalANDExpression:
-	  BitwiseORExpression
-	| LogicalANDExpression LOGAND BitwiseORExpression {
+LogicalANDExpr:
+	  BitwiseORExpr
+	| LogicalANDExpr LOGAND BitwiseORExpr {
 		$$ = new BinOpNode($1, $3, Operator::kAnd);
 	}
 	;
 
-LogicalANDExpression_NoBrace:
-	  BitwiseORExpression_NoBrace
-	| LogicalANDExpression_NoBrace LOGAND BitwiseORExpression {
+LogicalANDExpr_NoBrace:
+	  BitwiseORExpr_NoBrace
+	| LogicalANDExpr_NoBrace LOGAND BitwiseORExpr {
 		$$ = new BinOpNode($1, $3, Operator::kAnd);
 	}
 	;
 
-LogicalORExpression:
-	  LogicalANDExpression
-	| LogicalORExpression LOGOR LogicalANDExpression {
+LogicalORExpr:
+	  LogicalANDExpr
+	| LogicalORExpr LOGOR LogicalANDExpr {
 		$$ = new BinOpNode($1, $3, Operator::kOr);
 	}
 	;
 
-LogicalORExpression_NoBrace:
-	  LogicalANDExpression_NoBrace
-	| LogicalORExpression_NoBrace LOGOR LogicalANDExpression {
+LogicalORExpr_NoBrace:
+	  LogicalANDExpr_NoBrace
+	| LogicalORExpr_NoBrace LOGOR LogicalANDExpr {
 		$$ = new BinOpNode($1, $3, Operator::kOr);
 	}
 	;
 
-CoalesceExpression:
-	  CoalesceExpressionHead QUESTIONQUESTION BitwiseORExpression {
+CoalesceExpr:
+	  CoalesceExprHead QUESTIONQUESTION BitwiseORExpr {
 		$$ = new BinOpNode($1, $3, Operator::kCoalesce);
 	}
 	;
 
-CoalesceExpressionHead:
-	  CoalesceExpression
-	| BitwiseORExpression
+CoalesceExprHead:
+	  CoalesceExpr
+	| BitwiseORExpr
 	;
 
-CoalesceExpression_NoBrace:
-	  CoalesceExpressionHead_NoBrace QUESTIONQUESTION BitwiseORExpression {
+CoalesceExpr_NoBrace:
+	  CoalesceExprHead_NoBrace QUESTIONQUESTION BitwiseORExpr {
 		$$ = new BinOpNode($1, $3, Operator::kCoalesce);
 	}
 	;
 
-CoalesceExpressionHead_NoBrace:
-	  CoalesceExpression_NoBrace
-	| BitwiseORExpression_NoBrace
+CoalesceExprHead_NoBrace:
+	  CoalesceExpr_NoBrace
+	| BitwiseORExpr_NoBrace
 	;
 
-ShortCircuitExpression:
-	  LogicalORExpression
-	| CoalesceExpression
+ShortCircuitExpr:
+	  LogicalORExpr
+	| CoalesceExpr
 	;
 
-ShortCircuitExpression_NoBrace:
-	  LogicalORExpression_NoBrace
-	| CoalesceExpression_NoBrace
+ShortCircuitExpr_NoBrace:
+	  LogicalORExpr_NoBrace
+	| CoalesceExpr_NoBrace
 	;
 
 /* 12.14 Conditional Operator */
-ConditionalExpression:
-	  ShortCircuitExpression
-	| ShortCircuitExpression '?' AssignmentExpression ':'
-	    AssignmentExpression
+ConditionalExpr:
+	  ShortCircuitExpr
+	| ShortCircuitExpr '?' AssignmentExpr ':'
+	    AssignmentExpr
 	;
 
-ConditionalExpression_NoBrace:
-	  ShortCircuitExpression_NoBrace
-	| ShortCircuitExpression_NoBrace '?' AssignmentExpression ':'
-	    AssignmentExpression
+ConditionalExpr_NoBrace:
+	  ShortCircuitExpr_NoBrace
+	| ShortCircuitExpr_NoBrace '?' AssignmentExpr ':'
+	    AssignmentExpr
 	;
 
 /* 12.15 Assignment Operator */
-AssignmentExpression:
-	  ConditionalExpression
-	// | ObjectAssignmentPattern '=' AssignmentExpression
-	// | ArrayAssignmentPattern '=' AssignmentExpression
-	/* | YieldExpression
+AssignmentExpr:
+	  ConditionalExpr
+	// | ObjectAssignmentPattern '=' AssignmentExpr
+	// | ArrayAssignmentPattern '=' AssignmentExpr
+	/* | YieldExpr
 	| ArrowFunction
 	| AsyncArrowFunction */
-	| LeftHandSideExpression '=' AssignmentExpression
-	| LeftHandSideExpression ASSIGNOP AssignmentExpression
+	| LeftHandSideExpr '=' AssignmentExpr
+	| LeftHandSideExpr ASSIGNOP AssignmentExpr
 	;
 
-AssignmentExpression_NoBrace:
-	  ConditionalExpression_NoBrace
-	// | ArrayAssignmentPattern '=' AssignmentExpression
-	/* | YieldExpression
+AssignmentExpr_NoBrace:
+	  ConditionalExpr_NoBrace
+	// | ArrayAssignmentPattern '=' AssignmentExpr
+	/* | YieldExpr
 	| ArrowFunction
 	| AsyncArrowFunction */
-	| LeftHandSideExpression_NoBrace '=' AssignmentExpression
-	| LeftHandSideExpression_NoBrace ASSIGNOP AssignmentExpression
+	| LeftHandSideExpr_NoBrace '=' AssignmentExpr
+	| LeftHandSideExpr_NoBrace ASSIGNOP AssignmentExpr
 	;
 
 /* 12.15.5 Destructuring Assignment */
@@ -864,36 +864,36 @@ AssignmentRestElement:
 	;
 
 DestructuringAssignmentTarget:
-	  LeftHandSideExpression
+	  LeftHandSideExpr
 	;
 */
 
 /* 12.16 ',' Operator */
-Expression:
-	  AssignmentExpression
-	| Expression ',' AssignmentExpression
+Expr:
+	  AssignmentExpr
+	| Expr ',' AssignmentExpr
 	;
 
-Expression_NoBrace:
-	  AssignmentExpression_NoBrace
-	| Expression_NoBrace ',' AssignmentExpression
+Expr_NoBrace:
+	  AssignmentExpr_NoBrace
+	| Expr_NoBrace ',' AssignmentExpr
 	;
 
-Statement:
-	  BlockStatement
-	| VariableStatement
-	| EmptyStatement
-	| ExpressionStatement
-	| IfStatement
-	| BreakableStatement
-	| ContinueStatement
-	| BreakStatement
-	/* +Return */ | ReturnStatement
-	| WithStatement
-	| LabelledStatement
-	| ThrowStatement
-	| TryStatement
-	| DebuggerStatement
+Stmt:
+	  BlockStmt
+	| VariableStmt
+	| EmptyStmt
+	| ExprStmt
+	| IfStmt
+	| BreakableStmt
+	| ContinueStmt
+	| BreakStmt
+	/* +Return */ | ReturnStmt
+	| WithStmt
+	| LabelledStmt
+	| ThrowStmt
+	| TryStmt
+	| DebuggerStmt
 	;
 
 Declaration:
@@ -910,28 +910,28 @@ HoistableDeclaration:
 	//| AsyncGeneratorDeclaration
 	;
 
-BreakableStatement:
-	  IterationStatement
-	//| SwitchStatement
+BreakableStmt:
+	  IterationStmt
+	//| SwitchStmt
 	;
 
 
-BlockStatement:
+BlockStmt:
 	  Block
 	;
 
 Block:
-	  '{' StatementList '}'
+	  '{' StmtList '}'
 	| '{' '}'
 	;
 
-StatementList:
-	  StatementListItem
-	| StatementList StatementListItem
+StmtList:
+	  StmtListItem
+	| StmtList StmtListItem
 	;
 
-StatementListItem:
-	  Statement { printf("statement parsed\n"); }
+StmtListItem:
+	  Stmt { printf("Stmt parsed\n"); }
 	| Declaration
 	;
 
@@ -955,7 +955,7 @@ LexicalBinding:
 	| BindingPattern Initialiser
 	;
 
-VariableStatement:
+VariableStmt:
 	  VAR VariableDeclarationList ';'
 	| VAR VariableDeclarationList error { ASI; }
 	;
@@ -1034,100 +1034,100 @@ BindingRestElement:
 	| ELLIPSIS BindingPattern
 	;
 
-EmptyStatement:
+EmptyStmt:
 	  ';'
 	;
 
 /*
- * "An ExpressionStatement cannot start with a U+007B (LEFT CURLY BRACKET)
+ * "An ExprStmt cannot start with a U+007B (LEFT CURLY BRACKET)
  * because that might make it ambiguous with a Block"
- * We therefore need a "no left curly bracket start" alternative of Expression.
+ * We therefore need a "no left curly bracket start" alternative of Expr.
  */
-ExpressionStatement:
-	  Expression_NoBrace ';'
-	| Expression_NoBrace error { ASI; }
+ExprStmt:
+	  Expr_NoBrace ';'
+	| Expr_NoBrace error { ASI; }
 	;
 
-IfStatement:
-	  IF '(' Expression ')' Statement ELSE Statement
-	| IF '(' Expression ')' Statement %prec PLAIN_IF
+IfStmt:
+	  IF '(' Expr ')' Stmt ELSE Stmt
+	| IF '(' Expr ')' Stmt %prec PLAIN_IF
 	;
 
-IterationStatement:
-	  DoWhileStatement
-	| WhileStatement
-	| ForStatement
-	//| ForInOfStatement
+IterationStmt:
+	  DoWhileStmt
+	| WhileStmt
+	| ForStmt
+	//| ForInOfStmt
 	;
 
-DoWhileStatement: /* [Yield, Await, Return] */
-	  DO Statement /* [?Yield, ?Await, ?Return] */ WHILE '('
-	  Expression /* [+In, ?Yield, ?Await] */ ')' ';'
+DoWhileStmt: /* [Yield, Await, Return] */
+	  DO Stmt /* [?Yield, ?Await, ?Return] */ WHILE '('
+	  Expr /* [+In, ?Yield, ?Await] */ ')' ';'
 	;
 
-WhileStatement: /* [Yield, Await, Return] */
-	  WHILE '(' Expression /* [+In, ?Yield, ?Await] */ ')'
-	  Statement /* [?Yield, ?Await, ?Return] */
+WhileStmt: /* [Yield, Await, Return] */
+	  WHILE '(' Expr /* [+In, ?Yield, ?Await] */ ')'
+	  Stmt /* [?Yield, ?Await, ?Return] */
 	;
 
 /*
-ForStatement[Yield, Await, Return] :
-	for ( [lookahead ≠ let [] Expression[~In, ?Yield, ?Await]opt ;
-	    Expression[+In, ?Yield, ?Await]opt ;
-	    Expression[+In, ?Yield, ?Await]opt )
-	    Statement[?Yield, ?Await, ?Return]
+ForStmt[Yield, Await, Return] :
+	for ( [lookahead ≠ let [] Expr[~In, ?Yield, ?Await]opt ;
+	    Expr[+In, ?Yield, ?Await]opt ;
+	    Expr[+In, ?Yield, ?Await]opt )
+	    Stmt[?Yield, ?Await, ?Return]
 	for ( var VariableDeclarationList[~In, ?Yield, ?Await] ;
-	    Expression[+In, ?Yield, ?Await]opt ;
-	    Expression[+In, ?Yield, ?Await]opt )
-	    Statement[?Yield, ?Await, ?Return]
+	    Expr[+In, ?Yield, ?Await]opt ;
+	    Expr[+In, ?Yield, ?Await]opt )
+	    Stmt[?Yield, ?Await, ?Return]
 	for ( LexicalDeclaration[~In, ?Yield, ?Await]
-	    Expression[+In, ?Yield, ?Await]opt ;
-	    Expression[+In, ?Yield, ?Await]opt )
-	    Statement[?Yield, ?Await, ?Return]
+	    Expr[+In, ?Yield, ?Await]opt ;
+	    Expr[+In, ?Yield, ?Await]opt )
+	    Stmt[?Yield, ?Await, ?Return]
 */
 
-ForStatement: /* [Yield, Await, Return] */
-	  FOR '(' ExpressionOpt ';' ExpressionOpt ';' ExpressionOpt ')'
-	  Statement
-	| FOR '(' VAR VariableDeclarationList ';' ExpressionOpt ';'
-	  ExpressionOpt ')' Statement
-	| FOR '(' LexicalDeclaration ExpressionOpt ';' ExpressionOpt ')'
-	  Statement
+ForStmt: /* [Yield, Await, Return] */
+	  FOR '(' ExprOpt ';' ExprOpt ';' ExprOpt ')'
+	  Stmt
+	| FOR '(' VAR VariableDeclarationList ';' ExprOpt ';'
+	  ExprOpt ')' Stmt
+	| FOR '(' LexicalDeclaration ExprOpt ';' ExprOpt ')'
+	  Stmt
 	;
 
-ExpressionOpt:
-	  Expression
+ExprOpt:
+	  Expr
 	| %empty
 	;
 
 /*
-ForInOfStatement[Yield, Await, Return] :
-	for ( [lookahead ≠ let [] LeftHandSideExpression[?Yield, ?Await] in
-	    Expression[+In, ?Yield, ?Await] ) Statement[?Yield, ?Await, ?Return]
-	for ( var ForBinding[?Yield, ?Await] in Expression[+In, ?Yield, ?Await]
-	    ) Statement[?Yield, ?Await, ?Return]
-	for ( ForDeclaration[?Yield, ?Await] in Expression[+In, ?Yield, ?Await]
-	    ) Statement[?Yield, ?Await, ?Return]
+ForInOfStmt[Yield, Await, Return] :
+	for ( [lookahead ≠ let [] LeftHandSideExpr[?Yield, ?Await] in
+	    Expr[+In, ?Yield, ?Await] ) Stmt[?Yield, ?Await, ?Return]
+	for ( var ForBinding[?Yield, ?Await] in Expr[+In, ?Yield, ?Await]
+	    ) Stmt[?Yield, ?Await, ?Return]
+	for ( ForDeclaration[?Yield, ?Await] in Expr[+In, ?Yield, ?Await]
+	    ) Stmt[?Yield, ?Await, ?Return]
 	for ( [lookahead ∉ { let, async of }]
-	    LeftHandSideExpression[?Yield, ?Await] of
-	    AssignmentExpression[+In, ?Yield, ?Await] )
-	    Statement[?Yield, ?Await, ?Return]
+	    LeftHandSideExpr[?Yield, ?Await] of
+	    AssignmentExpr[+In, ?Yield, ?Await] )
+	    Stmt[?Yield, ?Await, ?Return]
 	for ( var ForBinding[?Yield, ?Await] of
-	    AssignmentExpression[+In, ?Yield, ?Await]
-	    ) Statement[?Yield, ?Await, ?Return]
+	    AssignmentExpr[+In, ?Yield, ?Await]
+	    ) Stmt[?Yield, ?Await, ?Return]
 	for ( ForDeclaration[?Yield, ?Await] of
-	    AssignmentExpression[+In, ?Yield, ?Await] )
-	    Statement[?Yield, ?Await, ?Return]
+	    AssignmentExpr[+In, ?Yield, ?Await] )
+	    Stmt[?Yield, ?Await, ?Return]
 	[+Await] for await ( [lookahead ≠ let]
-	    LeftHandSideExpression[?Yield, ?Await] of
-	    AssignmentExpression[+In, ?Yield, ?Await] )
-	    Statement[?Yield, ?Await, ?Return]
+	    LeftHandSideExpr[?Yield, ?Await] of
+	    AssignmentExpr[+In, ?Yield, ?Await] )
+	    Stmt[?Yield, ?Await, ?Return]
 	[+Await] for await ( var ForBinding[?Yield, ?Await] of
-	    AssignmentExpression[+In, ?Yield, ?Await] )
-	    Statement[?Yield, ?Await, ?Return]
+	    AssignmentExpr[+In, ?Yield, ?Await] )
+	    Stmt[?Yield, ?Await, ?Return]
 	[+Await] for await ( ForDeclaration[?Yield, ?Await] of
-	    AssignmentExpression[+In, ?Yield, ?Await] )
-	    Statement[?Yield, ?Await, ?Return]
+	    AssignmentExpr[+In, ?Yield, ?Await] )
+	    Stmt[?Yield, ?Await, ?Return]
 */
 
 /*
@@ -1139,28 +1139,28 @@ ForBinding[Yield, Await] :
 	BindingPattern[?Yield, ?Await]
 */
 
-ContinueStatement:
+ContinueStmt:
 	  CONTINUE ';'
 	| CONTINUE /* [no LineTerminator here] */ LabelIdentifier ';'
 	;
 
-BreakStatement:
+BreakStmt:
 	  BREAK ';'
 	| BREAK /* [no LineTerminator here] */ LabelIdentifier ';'
 	;
 
-ReturnStatement:
+ReturnStmt:
 	  RETURN ';'
-	| RETURN /* [no LineTerminator here] */ Expression ';'
+	| RETURN /* [no LineTerminator here] */ Expr ';'
 	;
 
-WithStatement:
-	  WITH '(' Expression ')' Statement
+WithStmt:
+	  WITH '(' Expr ')' Stmt
 	;
 
 /*
-SwitchStatement[Yield, Await, Return] :
-switch ( Expression[+In, ?Yield, ?Await] ) CaseBlock[?Yield, ?Await, ?Return]
+SwitchStmt[Yield, Await, Return] :
+switch ( Expr[+In, ?Yield, ?Await] ) CaseBlock[?Yield, ?Await, ?Return]
 
 CaseBlock[Yield, Await, Return] :
 { CaseClauses[?Yield, ?Await, ?Return]opt }
@@ -1171,13 +1171,13 @@ CaseClause[?Yield, ?Await, ?Return]
 CaseClauses[?Yield, ?Await, ?Return] CaseClause[?Yield, ?Await, ?Return]
 
 CaseClause[Yield, Await, Return] :
-case Expression[+In, ?Yield, ?Await] : StatementList[?Yield, ?Await, ?Return]opt
+case Expr[+In, ?Yield, ?Await] : StmtList[?Yield, ?Await, ?Return]opt
 
 DefaultClause[Yield, Await, Return] :
-default : StatementList[?Yield, ?Await, ?Return]opt
+default : StmtList[?Yield, ?Await, ?Return]opt
 */
 
-LabelledStatement:
+LabelledStmt:
 	LabelIdentifier ':' LabelledItem {
 		//$$ = new LabelNode($1, $3);
 		UNIMPLEMENTED;
@@ -1185,15 +1185,15 @@ LabelledStatement:
 	;
 
 LabelledItem:
-	  Statement
+	  Stmt
 	//| FunctionDeclaration
 	;
 
-ThrowStatement:
-	  THROW /* [no LineTerminator here] */ Expression ';'
+ThrowStmt:
+	  THROW /* [no LineTerminator here] */ Expr ';'
 	;
 
-TryStatement:
+TryStmt:
 	  TRY Block Catch
 	| TRY Block Finally
 	| TRY Block Catch Finally
@@ -1213,7 +1213,7 @@ CatchParameter:
 	| BindingPattern
 	;
 
-DebuggerStatement:
+DebuggerStmt:
 	  DEBUGGER ';'
 	;
 
@@ -1255,18 +1255,18 @@ FunctionDeclaration:
 	| FUNCTION '(' FormalParameters ')' '{' FunctionBody '}'
 	;
 
-FunctionExpression:
+FunctionExpr:
 	  FUNCTION BindingIdentifier '(' FormalParameters ')' '{' FunctionBody
 	  '}'
 	| FUNCTION '(' FormalParameters ')' '{' FunctionBody '}'
 	;
 
 FunctionBody:
-	FunctionStatementList
+	FunctionStmtList
 	;
 
-FunctionStatementList:
-	  StatementList
+FunctionStmtList:
+	  StmtList
 	| %empty
 	;
 
@@ -1277,7 +1277,7 @@ Script:
 	;
 
 ScriptBody:
-	  StatementList
+	  StmtList
 	;
 
 

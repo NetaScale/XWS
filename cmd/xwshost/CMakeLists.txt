@@ -1,4 +1,4 @@
-ByaccComp(Parser.yy)
+BisonComp(Parser.yy)
 FlexComp(Scanner.ll)
 add_executable(xwshost Main.cc
     ${CMAKE_CURRENT_BINARY_DIR}/Parser.tab.cc

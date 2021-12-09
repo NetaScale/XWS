@@ -5,6 +5,7 @@
 
 struct Operator {
 	enum Op {
+		kNone = 0,
 		kExp,
 		kMul,
 		kDiv,
@@ -13,7 +14,11 @@ struct Operator {
 		kSub,
 		kLShift,
 		kRShift,
-		KSRShift,
+		kURShift,
+		kLessThan,
+		kGreaterThan,
+		kLessThanOrEq,
+		kGreaterThanOrEq,
 		kInstanceOf,
 		kAmong, /* in */
 		kEquals,
@@ -21,7 +26,7 @@ struct Operator {
 		kStrictEquals,
 		kStrictNotEquals,
 		kBitAnd,
-		kBitXOr,
+		kBitXor,
 		kBitOr,
 		kAnd,
 		kOr,
@@ -31,68 +36,125 @@ struct Operator {
 
 #include "Parser.tab.hh"
 
+static inline JSLTYPE
+loc_from(JSLTYPE &a, JSLTYPE &b)
+{
+	JSLTYPE ret;
+	ret.first_column = a.first_column;
+	ret.first_line = a.first_line;
+	ret.last_column = b.last_column;
+	ret.last_line = b.last_line;
+	return ret;
+}
+
 class Node {
     protected:
-	Node(JSLTYPE loc);
-
 	JSLTYPE m_loc;
+
+	Node(JSLTYPE loc)
+	    : m_loc(loc) {};
+
+    public:
+	JSLTYPE &loc() { return m_loc; };
 };
 
-class ExpressionNode : public Node {
-	ExpressionNode(JSLTYPE loc);
+class StmtNode : public Node {
+    protected:
+	StmtNode(JSLTYPE loc)
+	    : Node(loc) {};
 };
 
-class ThisNode : public ExpressionNode {
+class ExprNode : public Node {
+    protected:
+	ExprNode(JSLTYPE loc)
+	    : Node(loc) {};
+};
+
+class ThisNode : public ExprNode {
     public:
 	ThisNode(JSLTYPE loc);
 };
 
-class IdentifierNode : public ExpressionNode {
-    public:
-	IdentifierNode(JSLTYPE loc, const char *value);
+class IdentifierNode : public ExprNode {
+	char *m_value;
 
-    protected:
-	std::string m_value;
+    public:
+	IdentifierNode(JSLTYPE loc, char *value)
+	    : ExprNode(loc)
+	    , m_value(value)
+	{
+	};
 };
 
-class NullNode : public ExpressionNode {
+class NullNode : public ExprNode {
     public:
 	NullNode(JSLTYPE loc);
 };
 
-class BoolNode : public ExpressionNode {
-    public:
-	BoolNode(JSLTYPE loc, bool value);
-
-    protected:
+class BoolNode : public ExprNode {
 	bool m_value;
+
+    public:
+	BoolNode(JSLTYPE loc, bool value)
+	    : ExprNode(loc)
+	    , m_value(value) {};
 };
 
-class NumberNode : public ExpressionNode {
-    public:
-	NumberNode(JSLTYPE loc, double value);
-
-    protected:
+class NumberNode : public ExprNode {
 	double m_value;
-};
 
-class StringNode : public ExpressionNode {
     public:
-	StringNode(JSLTYPE loc, const char *value);
-
-    protected:
-	std::string m_value;
+	NumberNode(JSLTYPE loc, double value)
+	    : ExprNode(loc)
+	    , m_value(value)
+	{
+	};
 };
 
-class ArrayNode : public ExpressionNode {
+class StringNode : public ExprNode {
+	char *m_value;
+
+    public:
+	StringNode(JSLTYPE loc, char *value)
+	    : ExprNode(loc)
+	    , m_value(value)
+	{
+	};
+};
+
+class ArrayNode : public ExprNode {
     public:
 };
 
-class ObjectNode : public ExpressionNode {
+class ObjectNode : public ExprNode {
     public:
 };
 
-class FunctionExpressionNode : public ExpressionNode {
+class AccessorNode : public ExprNode {
+	ExprNode *m_object, *m_property;
+
+    public:
+	AccessorNode(ExprNode *object, ExprNode *property)
+	    : ExprNode(loc_from(object->loc(), property->loc()))
+	    , m_object(object)
+	    , m_property(property) {};
+};
+
+class SuperNode : public ExprNode {
+    public:
+	SuperNode(JSLTYPE loc)
+	    : ExprNode(loc) {};
+};
+
+class NewExprNode: public ExprNode {
+	ExprNode *m_expr;
+
+    public:
+	NewExprNode(JSLTYPE superLoc, ExprNode* expr)
+	    : ExprNode(loc_from(superLoc, expr->loc())), m_expr(expr) {};
+};
+
+class FunctionExprNode : public ExprNode {
     public:
 };
 
@@ -100,13 +162,35 @@ class FunctionExpressionNode : public ExpressionNode {
  * Binary operators
  */
 
-class BinOpNode : public ExpressionNode {
-    public:
-	BinOpNode(ExpressionNode *lhs, ExpressionNode *rhs, Operator::Op op);
-
-    protected:
-	ExpressionNode *m_lhs, *m_rhs;
+class BinOpNode : public ExprNode {
+	ExprNode *m_lhs, *m_rhs;
 	Operator::Op m_op;
+
+    public:
+	BinOpNode(ExprNode *lhs, ExprNode *rhs, Operator::Op op)
+	    : ExprNode(loc_from(lhs->loc(), rhs->loc()))
+	    , m_lhs(lhs)
+	    , m_rhs(rhs)
+	    , m_op(op) {};
+};
+
+class AssignNode : public ExprNode {
+	ExprNode *m_lhs, *m_rhs;
+	Operator::Op m_op; /* optional operation */
+
+    public:
+	AssignNode(ExprNode *lhs, ExprNode *rhs, Operator::Op op)
+	    : ExprNode(loc_from(lhs->loc(), rhs->loc()))
+	    , m_lhs(lhs)
+	    , m_rhs(rhs)
+	    , m_op(op) {};
+};
+
+class ExprStmtNode : public StmtNode {
+	ExprNode *m_expr;
+
+    public:
+	ExprStmtNode(ExprNode *expr) : StmtNode(expr->loc()), m_expr(expr) {};
 };
 
 #endif /* AST_HH_ */

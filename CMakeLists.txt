@@ -17,7 +17,7 @@ GET_FILENAME_COMPONENT(file ${path} NAME_WE)
       DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${path})
 endfunction(FlexComp)
 
-function(ByaccComp path)
+function(BisonComp path)
   GET_FILENAME_COMPONENT(file ${path} NAME_WE)
   add_custom_command(
       OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${file}.tab.cc
@@ -28,7 +28,7 @@ function(ByaccComp path)
           -o ${CMAKE_CURRENT_BINARY_DIR}/${file}.tab.cc -d ${path}
       DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${path}
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-endfunction(ByaccComp)
+endfunction(BisonComp)
 
 #
 # feature checks
@@ -49,5 +49,4 @@ if (NOT BISON_FOUND)
 	message(STATUS "Bison for Windows used: " ${BISON_EXECUTABLE})
 endif ()
 
-add_subdirectory(cmd/byacc)
 add_subdirectory(cmd/xwshost)

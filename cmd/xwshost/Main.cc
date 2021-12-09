@@ -15,7 +15,7 @@
 int
 main(int argc, char *arg[])
 {
-	std::string tst("({x, y} = 55)");
+	std::string tst("2 + 2");
 	Driver drv;
 	YY_BUFFER_STATE yybuf;
 

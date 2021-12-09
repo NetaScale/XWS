@@ -19,6 +19,7 @@
 #include "AST.hh"
 
 #define YYDEBUG 1
+#define UNIMPLEMENTED printf("Sorry, this is unimplemented\n"); YYERROR
 
 static int assign_merge (YYSTYPE pattern, YYSTYPE regular);
 %}
@@ -26,7 +27,8 @@ static int assign_merge (YYSTYPE pattern, YYSTYPE regular);
 %code requires {
 #include "Driver.hh"
 
-class ExpressionNode;
+class ExprNode;
+class StmtNode;
 
 #define ASI printf(" -> ADDING AUTO SC\n");
 
@@ -96,17 +98,19 @@ jslex(JSSTYPE *yylval, JSLTYPE *loc, Driver * driver);
 	Operator::Op opVal;
 	char * str;
 
-	ExpressionNode * exprNode;
+	ExprNode * exprNode;
+	StmtNode * stmtNode;
 }
 
 %type <str> IDENTIFIER IdentifierNotReserved
 
-%type <exprNode> IdentifierReference BindingIdentifier
+%type <exprNode> IdentifierReference BindingIdentifier LabelIdentifier
 
 %type <exprNode> PrimaryExpression PrimaryExpression_NoBrace
 %type <exprNode> Literal
 
 %type <exprNode> MemberExpression MemberExpression_NoBrace
+%type <exprNode> SuperProperty SuperCall
 %type <exprNode> NewExpression NewExpression_NoBrace
 %type <exprNode> CallExpression CallExpression_NoBrace
 %type <exprNode> OptionalExpression OptionalExpression_NoBrace
@@ -131,10 +135,13 @@ jslex(JSSTYPE *yylval, JSLTYPE *loc, Driver * driver);
 %type <exprNode> ShortCircuitExpression ShortCircuitExpression_NoBrace
 %type <exprNode> ConditionalExpression ConditionalExpression_NoBrace
 %type <exprNode> AssignmentExpression AssignmentExpression_NoBrace
+%type <exprNode> Expression Expression_NoBrace
 
-
-
-
+%type <stmtNode> Block BlockStatement VariableStatement EmptyStatement
+%type <stmtNode> ExpressionStatement IfStatement BreakableStatement
+%type <stmtNode> ContinueStatement BreakStatement ReturnStatement WithStatement
+%type <stmtNode> LabelledStatement ThrowStatement TryStatement DebuggerStatement
+%type <stmtNode> Statement LabelledItem
 
 
 %%
@@ -167,15 +174,15 @@ IdentifierReference(Yield, Await):
 */
 
 IdentifierReference:
-	  IdentifierNotReserved  { $$ = new IdentifierNode(@1, $1); }
+	  IdentifierNotReserved { $$ = new IdentifierNode(@1, $1); }
 	;
 
 BindingIdentifier:
-	  IdentifierNotReserved  { $$ = new IdentifierNode(@1, $1); }
+	  IdentifierNotReserved { $$ = new IdentifierNode(@1, $1); }
 	;
 
 LabelIdentifier:
-	  IdentifierNotReserved
+	  IdentifierNotReserved { $$ = new IdentifierNode(@1, $1); }
 	;
 
 /* 12.2 Primary Expression */
@@ -296,9 +303,13 @@ TemplateLiteral:
 /* 12.3 Left-Hand-Side Expressions */
 MemberExpression:
 	  PrimaryExpression
-	| MemberExpression '[' Expression ']'
-	| MemberExpression '.' IDENTIFIER
-	| MemberExpression TemplateLiteral
+	| MemberExpression '[' Expression ']' {
+		$$ = new AccessorNode($1, $3);
+	}
+	| MemberExpression '.' IDENTIFIER {
+		$$ = new AccessorNode($1, new IdentifierNode(@3, $3));
+	}
+	// | MemberExpression TemplateLiteral
 	| SuperProperty
 	| MetaProperty
 	| NEW MemberExpression Arguments
@@ -306,17 +317,26 @@ MemberExpression:
 
 MemberExpression_NoBrace:
 	  PrimaryExpression_NoBrace
-	| MemberExpression_NoBrace '[' Expression ']'
-	| MemberExpression_NoBrace '.' IDENTIFIER
-	| MemberExpression_NoBrace TemplateLiteral
+	| MemberExpression_NoBrace '[' Expression ']' {
+		$$ = new AccessorNode($1, $3);
+	}
+	| MemberExpression_NoBrace '.' IDENTIFIER {
+		$$ = new AccessorNode($1, new IdentifierNode(@3, $3));
+	}
+	//| MemberExpression_NoBrace TemplateLiteral
 	| SuperProperty
 	| MetaProperty
 	| NEW MemberExpression Arguments
 	;
 
 SuperProperty:
-	  SUPER '[' Expression ']'
-	| SUPER '.' IDENTIFIER
+	  SUPER '[' Expression ']' {
+		$$ = new AccessorNode(new SuperNode(@1), $3);
+	}
+	| SUPER '.' IDENTIFIER {
+		$$ = new AccessorNode(new SuperNode(@1), new
+		    IdentifierNode(@3, $3));
+	}
 	;
 
 MetaProperty:
@@ -334,30 +354,46 @@ ImportMeta:
 
 NewExpression:
 	  MemberExpression
-	| NEW NewExpression
+	| NEW NewExpression {
+		$$ = new NewExprNode(@1, $2);
+	}
 	;
 
 NewExpression_NoBrace:
 	  MemberExpression_NoBrace
-	| NEW NewExpression
+	| NEW NewExpression {
+		$$ = new NewExprNode(@1, $2);
+	}
 	;
 
 CallExpression:
 	  CallMemberExpression
 	| SuperCall
 	| CallExpression Arguments
-	| CallExpression '[' Expression ']'
-	| CallExpression '.' IDENTIFIER
-	| CallExpression TemplateLiteral
+	| CallExpression '[' Expression ']' {
+		$$ = new AccessorNode($1, $3);
+	}
+	| CallExpression '.' IDENTIFIER {
+		$$ = new AccessorNode($1, new IdentifierNode(@3, $3));
+	}
+	| CallExpression TemplateLiteral {
+		UNIMPLEMENTED;
+	}
 	;
 
 CallExpression_NoBrace:
 	  CallMemberExpression_NoBrace
 	| SuperCall
 	| CallExpression_NoBrace Arguments
-	| CallExpression_NoBrace '[' Expression ']'
-	| CallExpression_NoBrace '.' IDENTIFIER
-	| CallExpression_NoBrace TemplateLiteral
+	| CallExpression_NoBrace '[' Expression ']' {
+		$$ = new AccessorNode($1, $3);
+	}
+	| CallExpression_NoBrace '.' IDENTIFIER {
+		$$ = new AccessorNode($1, new IdentifierNode(@3, $3));
+	}
+	| CallExpression_NoBrace TemplateLiteral {
+		UNIMPLEMENTED;
+	}
 	;
 
 CallMemberExpression:
@@ -476,18 +512,26 @@ ExponentialExpression:
 
 ExponentialExpression_NoBrace:
 	  UnaryExpression_NoBrace
-	| UpdateExpression_NoBrace STARSTAR ExponentialExpression
+	| UpdateExpression_NoBrace STARSTAR ExponentialExpression {
+		$$ = new BinOpNode($1, $3, Operator::kExp);
+	}
 	;
 
 /* 12.7 Multiplicative Operators */
 MultiplicativeExpression:
 	  ExponentialExpression
-	| MultiplicativeExpression MultiplicativeOperator ExponentialExpression
+	| MultiplicativeExpression MultiplicativeOperator
+	  ExponentialExpression {
+		$$ = new BinOpNode($1, $3, $2);
+	}
 	;
 
 MultiplicativeExpression_NoBrace:
 	  ExponentialExpression_NoBrace
-	| MultiplicativeExpression_NoBrace MultiplicativeOperator ExponentialExpression
+	| MultiplicativeExpression_NoBrace MultiplicativeOperator
+	  ExponentialExpression {
+		$$ = new BinOpNode($1, $3, $2);
+	}
 	;
 
 MultiplicativeOperator:
@@ -499,123 +543,205 @@ MultiplicativeOperator:
 /* 12.8 Additive Operators */
 AdditiveExpression:
 	  MultiplicativeExpression
-	| AdditiveExpression '+' MultiplicativeExpression
-	| AdditiveExpression '-' MultiplicativeExpression
+	| AdditiveExpression '+' MultiplicativeExpression {
+		$$ = new BinOpNode($1, $3, Operator::kAdd);
+	}
+	| AdditiveExpression '-' MultiplicativeExpression {
+		$$ = new BinOpNode($1, $3, Operator::kSub);
+	}
 	;
 
 AdditiveExpression_NoBrace:
 	  MultiplicativeExpression_NoBrace
-	| AdditiveExpression_NoBrace '+' MultiplicativeExpression
-	| AdditiveExpression_NoBrace '-' MultiplicativeExpression
+	| AdditiveExpression_NoBrace '+' MultiplicativeExpression {
+		$$ = new BinOpNode($1, $3, Operator::kAdd);
+	}
+	| AdditiveExpression_NoBrace '-' MultiplicativeExpression {
+		$$ = new BinOpNode($1, $3, Operator::kSub);
+	}
 	;
 
 /* 12.9 Bitwise Shift Operators */
 ShiftExpression:
 	  AdditiveExpression
-	| ShiftExpression LSHIFT AdditiveExpression
-	| ShiftExpression RSHIFT AdditiveExpression
-	| ShiftExpression URSHIFT
+	| ShiftExpression LSHIFT AdditiveExpression{
+		$$ = new BinOpNode($1, $3, Operator::kLShift);
+	}
+	| ShiftExpression RSHIFT AdditiveExpression {
+		$$ = new BinOpNode($1, $3, Operator::kRShift);
+	}
+	| ShiftExpression URSHIFT AdditiveExpression {
+		$$ = new BinOpNode($1, $3, Operator::kURShift);
+	}
 	;
 
 ShiftExpression_NoBrace:
 	  AdditiveExpression_NoBrace
-	| ShiftExpression_NoBrace LSHIFT AdditiveExpression
-	| ShiftExpression_NoBrace RSHIFT AdditiveExpression
-	| ShiftExpression_NoBrace URSHIFT
+	| ShiftExpression_NoBrace LSHIFT AdditiveExpression {
+		$$ = new BinOpNode($1, $3, Operator::kLShift);
+	}
+	| ShiftExpression_NoBrace RSHIFT AdditiveExpression {
+		$$ = new BinOpNode($1, $3, Operator::kRShift);
+	}
+	| ShiftExpression_NoBrace URSHIFT AdditiveExpression {
+		$$ = new BinOpNode($1, $3, Operator::kURShift);
+	}
 	;
 
 /* 12.10 Relational Operators */
 RelationalExpression:
 	  ShiftExpression
-	| RelationalExpression '<' ShiftExpression
-	| RelationalExpression '>' ShiftExpression
-	| RelationalExpression LTE ShiftExpression
-	| RelationalExpression GTE ShiftExpression
-	| RelationalExpression INSTANCEOF ShiftExpression
-	| RelationalExpression IN ShiftExpression
+	| RelationalExpression '<' ShiftExpression {
+		$$ = new BinOpNode($1, $3, Operator::kLessThan);
+	}
+	| RelationalExpression '>' ShiftExpression {
+		$$ = new BinOpNode($1, $3, Operator::kGreaterThan);
+	}
+	| RelationalExpression LTE ShiftExpression {
+		$$ = new BinOpNode($1, $3, Operator::kLessThanOrEq);
+	}
+	| RelationalExpression GTE ShiftExpression {
+		$$ = new BinOpNode($1, $3, Operator::kGreaterThanOrEq);
+	}
+	| RelationalExpression INSTANCEOF ShiftExpression {
+		$$ = new BinOpNode($1, $3, Operator::kInstanceOf);
+	}
+	| RelationalExpression IN ShiftExpression {
+		$$ = new BinOpNode($1, $3, Operator::kAmong);
+	}
 	;
 
 RelationalExpression_NoBrace:
 	  ShiftExpression_NoBrace
-	| RelationalExpression_NoBrace '<' ShiftExpression
-	| RelationalExpression_NoBrace '>' ShiftExpression
-	| RelationalExpression_NoBrace LTE ShiftExpression
-	| RelationalExpression_NoBrace GTE ShiftExpression
-	| RelationalExpression_NoBrace INSTANCEOF ShiftExpression
-	| RelationalExpression_NoBrace IN ShiftExpression
+	| RelationalExpression_NoBrace '<' ShiftExpression {
+		$$ = new BinOpNode($1, $3, Operator::kLessThan);
+	}
+	| RelationalExpression_NoBrace '>' ShiftExpression {
+		$$ = new BinOpNode($1, $3, Operator::kGreaterThan);
+	}
+	| RelationalExpression_NoBrace LTE ShiftExpression {
+		$$ = new BinOpNode($1, $3, Operator::kLessThanOrEq);
+	}
+	| RelationalExpression_NoBrace GTE ShiftExpression {
+		$$ = new BinOpNode($1, $3, Operator::kGreaterThanOrEq);
+	}
+	| RelationalExpression_NoBrace INSTANCEOF ShiftExpression {
+		$$ = new BinOpNode($1, $3, Operator::kInstanceOf);
+	}
+	| RelationalExpression_NoBrace IN ShiftExpression {
+		$$ = new BinOpNode($1, $3, Operator::kAmong);
+	}
 	;
 
 /* 12.11 Equality Operators */
 EqualityExpression:
 	  RelationalExpression
-	| EqualityExpression EQ RelationalExpression
-	| EqualityExpression NEQ RelationalExpression
-	| EqualityExpression STRICTEQ RelationalExpression
-	| EqualityExpression STRICTNEQ RelationalExpression
+	| EqualityExpression EQ RelationalExpression {
+		$$ = new BinOpNode($1, $3, Operator::kEquals);
+	}
+	| EqualityExpression NEQ RelationalExpression {
+		$$ = new BinOpNode($1, $3, Operator::kNotEquals);
+	}
+	| EqualityExpression STRICTEQ RelationalExpression {
+		$$ = new BinOpNode($1, $3, Operator::kStrictEquals);
+	}
+	| EqualityExpression STRICTNEQ RelationalExpression {
+		$$ = new BinOpNode($1, $3, Operator::kStrictNotEquals);
+	}
 	;
 
 EqualityExpression_NoBrace:
 	  RelationalExpression_NoBrace
-	| EqualityExpression_NoBrace EQ RelationalExpression
-	| EqualityExpression_NoBrace NEQ RelationalExpression
-	| EqualityExpression_NoBrace STRICTEQ RelationalExpression
-	| EqualityExpression_NoBrace STRICTNEQ RelationalExpression
+	| EqualityExpression_NoBrace EQ RelationalExpression {
+		$$ = new BinOpNode($1, $3, Operator::kEquals);
+	}
+	| EqualityExpression_NoBrace NEQ RelationalExpression {
+		$$ = new BinOpNode($1, $3, Operator::kNotEquals);
+	}
+	| EqualityExpression_NoBrace STRICTEQ RelationalExpression {
+		$$ = new BinOpNode($1, $3, Operator::kStrictEquals);
+	}
+	| EqualityExpression_NoBrace STRICTNEQ RelationalExpression {
+		$$ = new BinOpNode($1, $3, Operator::kStrictNotEquals);
+	}
 	;
 
 /* 12.12 Binary Bitwise Operators */
 BitwiseANDExpression:
 	  EqualityExpression
-	| BitwiseANDExpression '&' EqualityExpression
+	| BitwiseANDExpression '&' EqualityExpression {
+		$$ = new BinOpNode($1, $3, Operator::kBitAnd);
+	}
 	;
 
 BitwiseANDExpression_NoBrace:
 	  EqualityExpression_NoBrace
-	| BitwiseANDExpression_NoBrace '&' EqualityExpression
+	| BitwiseANDExpression_NoBrace '&' EqualityExpression {
+		$$ = new BinOpNode($1, $3, Operator::kBitAnd);
+	}
 	;
 
 BitwiseXORExpression:
 	  BitwiseANDExpression
-	| BitwiseXORExpression '^' BitwiseANDExpression
+	| BitwiseXORExpression '^' BitwiseANDExpression {
+		$$ = new BinOpNode($1, $3, Operator::kBitXor);
+	}
 	;
 
 BitwiseXORExpression_NoBrace:
 	  BitwiseANDExpression_NoBrace
-	| BitwiseXORExpression_NoBrace '^' BitwiseANDExpression
+	| BitwiseXORExpression_NoBrace '^' BitwiseANDExpression {
+		$$ = new BinOpNode($1, $3, Operator::kBitXor);
+	}
 	;
 
 BitwiseORExpression:
 	  BitwiseXORExpression
-	| BitwiseORExpression '|' BitwiseXORExpression
+	| BitwiseORExpression '|' BitwiseXORExpression {
+		$$ = new BinOpNode($1, $3, Operator::kBitOr);
+	}
 	;
 
 BitwiseORExpression_NoBrace:
 	  BitwiseXORExpression_NoBrace
-	| BitwiseORExpression_NoBrace '|' BitwiseXORExpression
+	| BitwiseORExpression_NoBrace '|' BitwiseXORExpression {
+		$$ = new BinOpNode($1, $3, Operator::kBitOr);
+	}
 	;
 
 /* 12.13 Binary Logical Operators */
 LogicalANDExpression:
 	  BitwiseORExpression
-	| LogicalANDExpression LOGAND BitwiseORExpression
+	| LogicalANDExpression LOGAND BitwiseORExpression {
+		$$ = new BinOpNode($1, $3, Operator::kAnd);
+	}
 	;
 
 LogicalANDExpression_NoBrace:
 	  BitwiseORExpression_NoBrace
-	| LogicalANDExpression_NoBrace LOGAND BitwiseORExpression
+	| LogicalANDExpression_NoBrace LOGAND BitwiseORExpression {
+		$$ = new BinOpNode($1, $3, Operator::kAnd);
+	}
 	;
 
 LogicalORExpression:
 	  LogicalANDExpression
-	| LogicalORExpression LOGOR LogicalANDExpression
+	| LogicalORExpression LOGOR LogicalANDExpression {
+		$$ = new BinOpNode($1, $3, Operator::kOr);
+	}
 	;
 
 LogicalORExpression_NoBrace:
 	  LogicalANDExpression_NoBrace
-	| LogicalORExpression_NoBrace LOGOR LogicalANDExpression
+	| LogicalORExpression_NoBrace LOGOR LogicalANDExpression {
+		$$ = new BinOpNode($1, $3, Operator::kOr);
+	}
 	;
 
 CoalesceExpression:
-	  CoalesceExpressionHead QUESTIONQUESTION BitwiseORExpression
+	  CoalesceExpressionHead QUESTIONQUESTION BitwiseORExpression {
+		$$ = new BinOpNode($1, $3, Operator::kCoalesce);
+	}
 	;
 
 CoalesceExpressionHead:
@@ -624,7 +750,9 @@ CoalesceExpressionHead:
 	;
 
 CoalesceExpression_NoBrace:
-	  CoalesceExpressionHead_NoBrace QUESTIONQUESTION BitwiseORExpression
+	  CoalesceExpressionHead_NoBrace QUESTIONQUESTION BitwiseORExpression {
+		$$ = new BinOpNode($1, $3, Operator::kCoalesce);
+	}
 	;
 
 CoalesceExpressionHead_NoBrace:
@@ -1050,7 +1178,11 @@ default : StatementList[?Yield, ?Await, ?Return]opt
 */
 
 LabelledStatement:
-	LabelIdentifier ':' LabelledItem;
+	LabelIdentifier ':' LabelledItem {
+		//$$ = new LabelNode($1, $3);
+		UNIMPLEMENTED;
+	}
+	;
 
 LabelledItem:
 	  Statement

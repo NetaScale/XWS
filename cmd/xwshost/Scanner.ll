@@ -64,74 +64,75 @@ DecimalLiteral {DecimalIntegerLiteral}
 "true"			{ return BOOLLIT; }
 "false"			{ return BOOLLIT; }
 
-"as"			{ return AS; }
-"async"			{ return ASYNC; }
-"await"			{ return AWAIT; }
-"break"			{ return BREAK; }
-"case"			{ return CASE; }
-"catch"			{ return CATCH; }
-"class"			{ return CLASS; }
-"const"			{ return CONST; }
-"continue"		{ return CONTINUE; }
-"debugger"		{ return DEBUGGER; }
-"default"		{ return DEFAULT; }
-"delete"		{ return DELETE; }
-"do"			{ return DO; }
-"else"			{ return ELSE; }
-"enum"			{ return ENUM; }
-"eval"			{ return EVAL; }
-"export"		{ return EXPORT; }
-"extends"		{ return EXTENDS; }
-"finally"		{ return FINALLY; }
-"for"			{ return FOR; }
-"from"			{ return FROM; }
-"function"		{ return FUNCTION; }
-"get"			{ return GET; }
-"if"			{ return IF; }
-"implements"		{ return IMPLEMENTS; }
-"import"		{ return IMPORT; }
-"in"			{ return IN; }
-"instanceof"		{ return INSTANCEOF; }
-"interface"		{ return INTERFACE; }
-"let"			{ return LET; }
-"new"			{ return NEW; }
-"of"			{ return OF; }
-"package"		{ return PACKAGE; }
-"private"		{ return PRIVATE; }
-"protected"		{ return PROTECETED; }
-"public"		{ return PUBLIC; }
-"return"		{ return RETURN; }
-"set"			{ return SET; }
-"static"		{ return STATIC; }
-"super"			{ return SUPER; }
-"switch"		{ return SWITCH; }
-"target"		{ return TARGET; }
-"this"			{ return THIS; }
-"throw"			{ return THROW; }
-"try"			{ return TRY; }
-"typeof"		{ return TYPEOF; }
-"var"			{ return VAR; }
-"void"			{ return VOID; }
-"while"			{ return WHILE; }
-"with"			{ return WITH; }
-"yield"			{ return YIELD; }
+"as"		return AS;
+"async"		return ASYNC;
+"await"		return AWAIT;
+"break"		return BREAK;
+"case"		return CASE;
+"catch"		return CATCH;
+"class"		return CLASS;
+"const"		return CONST;
+"continue"	return CONTINUE;
+"debugger"	return DEBUGGER;
+"default"	return DEFAULT;
+"delete"	return DELETE;
+"do"		return DO;
+"else"		return ELSE;
+"enum"		return ENUM;
+"eval"		return EVAL;
+"export"	return EXPORT;
+"extends"	return EXTENDS;
+"finally"	return FINALLY;
+"for"		return FOR;
+"from"		return FROM;
+"function"	return FUNCTION;
+"get"		return GET;
+"if"		return IF;
+"implements"	return IMPLEMENTS;
+"import"	return IMPORT;
+"in"		return IN;
+"instanceof"	return INSTANCEOF;
+"interface"	return INTERFACE;
+"let"		return LET;
+"new"		return NEW;
+"of"		return OF;
+"package"	return PACKAGE;
+"private"	return PRIVATE;
+"protected"	return PROTECTED;
+"public"	return PUBLIC;
+"return"	return RETURN;
+"set"		return SET;
+"static"	return STATIC;
+"super"		return SUPER;
+"switch"	return SWITCH;
+"target"	return TARGET;
+"this"		return THIS;
+"throw"		return THROW;
+"try"		return TRY;
+"typeof"	return TYPEOF;
+"var"		return VAR;
+"void"		return VOID;
+"while"		return WHILE;
+"with"		return WITH;
+"yield"		return YIELD;
 
-
-"++"			{ return PLUSPLUS; }
-"--"			{ return MINUSMINUS; }
-"**"			{ return STARSTAR; }
-"<<"			{ return LSHIFT; }
-">>"			{ return RSHIFT; }
-">>>"			{ return URSHIFT; }
-"<="			return LTE;
-">="			return GTE;
-"=="			return EQ;
-"!="			return NEQ;
-"==="			return STRICTEQ;
-"!=="			return STRICTNEQ;
-"&&"			return LOGAND;
-"||"			return LOGOR;
-"??"			return QUESTIONQUESTION;
+"++"		return PLUSPLUS;
+"--"		return MINUSMINUS;
+"**"		return STARSTAR;
+"<<"		return LSHIFT;
+">>"		return RSHIFT;
+">>>"		return URSHIFT;
+"<="		return LTE;
+">="		return GTE;
+"=="		return EQ;
+"!="		return NEQ;
+"==="		return STRICTEQ;
+"!=="		return STRICTNEQ;
+"&&"		return LOGAND;
+"||"		return LOGOR;
+"??"		return QUESTIONQUESTION;
+"=>"		return FARROW;
+"..."		return ELLIPSIS;
 
 {IdentifierName}	{
 	yylval->str = strdup(yytext);
@@ -143,4 +144,4 @@ DecimalLiteral {DecimalIntegerLiteral}
 	return NUMLIT;
 }
 
-.                   	return (int)yytext[0];
+.	return (int)yytext[0];

@@ -15,7 +15,7 @@
 int
 main(int argc, char *arg[])
 {
-	std::string tst("2 + 2");
+	std::string tst("const fn = function fn(a, b) { a + b }\nfn(1, 2)");
 	Driver drv;
 	YY_BUFFER_STATE yybuf;
 
@@ -31,6 +31,7 @@ main(int argc, char *arg[])
 	js_delete_buffer(yybuf, drv.scanner);
 	/* And, finally, destroy this scanner. */
 	jslex_destroy(drv.scanner);
+
 
 	return 0;
 }

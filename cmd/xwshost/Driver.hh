@@ -3,15 +3,27 @@
 
 #ifndef YY_TYPEDEF_YY_SCANNER_T
 #define YY_TYPEDEF_YY_SCANNER_T
-typedef void* yyscan_t;
+typedef void *yyscan_t;
 #endif
 
 struct YYLTYPE;
+class ScriptNode;
 
 class Driver {
-	public:
+    public:
 	yyscan_t scanner;
-	const char * txt;
+	const char *txt;
+
+	union {
+		ScriptNode *m_script;
+	};
+
+	enum Type {
+		kScript,
+		kModule,
+	} m_resultType;
+
+	int generateBytecode();
 };
 
 #endif /* DRIVER_HH_ */

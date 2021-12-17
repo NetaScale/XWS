@@ -1,8 +1,11 @@
 BisonComp(Parser.yy)
 FlexComp(Scanner.ll)
-add_executable(xwshost Main.cc
+
+add_executable(xwshost AST.cc BytecodeGen.cc Main.cc
     ${CMAKE_CURRENT_BINARY_DIR}/Parser.tab.cc
     ${CMAKE_CURRENT_BINARY_DIR}/Scanner.ll.cc)
 target_include_directories(xwshost PUBLIC ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${PROJECT_SOURCE_DIR}/vendor/flex)
+
+set_property(TARGET xwshost PROPERTY CXX_STANDARD 98)

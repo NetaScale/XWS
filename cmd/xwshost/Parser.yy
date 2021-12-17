@@ -19,7 +19,8 @@
 #include "AST.hh"
 
 #define YYDEBUG 1
-#define UNIMPLEMENTED printf("Sorry, this is unimplemented\n"); YYERROR
+#define UNIMPLEMENTED printf("Internal compiler error: %s:%d: " \
+    "Sorry, this is unimplemented\n", __FILE__, __LINE__); YYERROR
 
 static int assign_merge (YYSTYPE pattern, YYSTYPE regular);
 %}
@@ -29,6 +30,8 @@ static int assign_merge (YYSTYPE pattern, YYSTYPE regular);
 
 class ExprNode;
 class StmtNode;
+class CoverParenthesisedExprAndArrowParameterListNode;
+class DestructuringNode;
 
 #define ASI printf(" -> ADDING AUTO SC\n");
 
@@ -70,8 +73,10 @@ jslex(JSSTYPE *yylval, JSLTYPE *loc, Driver * driver);
 %token AS ASYNC AWAIT BREAK CASE CATCH CLASS CONST CONTINUE DEBUGGER DEFAULT
 %token DELETE DO ELSE ENUM EVAL EXPORT EXTENDS FINALLY FOR FROM FUNCTION GET IF
 %token IMPLEMENTS IMPORT IN INSTANCEOF INTERFACE LET NEW OF PACKAGE PRIVATE
-%token PROTECETED PUBLIC RETURN SET STATIC SUPER SWITCH TARGET THIS THROW TRY
-%token TYPEOF VAR VOID WHILE WITH YIELD
+%token PROTECTED PUBLIC RETURN SET STATIC SUPER SWITCH TARGET THIS THROW TRY
+%token TYPEOF VAR VOID WHILE WITH YIELD FARROW
+
+%token AMONG /* not in ES spec. 'in' for expressions. */
 
 %token ELLIPSIS /* ... */
 %token REGEXBODY REGEXFLAGS UNMATCHABLE
@@ -95,28 +100,45 @@ jslex(JSSTYPE *yylval, JSLTYPE *loc, Driver * driver);
 %precedence ELSE
 
 %union {
-	Operator::Op opVal;
-	char * str;
+	BinOp::Op opVal;
+	char *str;
 
-	ExprNode * exprNode;
-	StmtNode * stmtNode;
+	ExprNode *exprNode;
+	StmtNode *stmtNode;
+	CoverParenthesisedExprAndArrowParameterListNode
+	    *coverParenthesisedExprAndArrowParameterListNode;
+	DestructuringNode *destructuringNode;
+
+	std::vector<DestructuringNode*> *destructuringNodeVec;
+	std::vector<StmtNode*> *stmtNodeVec;
+	std::vector<ExprNode*> *exprNodeVec;
 }
 
 %type <str> IDENTIFIER IdentifierNotReserved
 
+%type <exprNode> NULLTOK BOOLLIT STRINGLIT NUMLIT
+
 %type <exprNode> IdentifierReference BindingIdentifier LabelIdentifier
+%type <str> BindingIdentifier_Str
+
+%type <exprNode> Initialiser
+
+%type <exprNode> ObjectLiteral RegularExprLiteral TemplateLiteral ArrayLiteral
 
 %type <exprNode> PrimaryExpr PrimaryExpr_NoBrace
 %type <exprNode> Literal
 
+%type <coverParenthesisedExprAndArrowParameterListNode>
+    CoverParenthesisedExprAndArrowParameterList
+
 %type <exprNode> MemberExpr MemberExpr_NoBrace
 %type <exprNode> SuperProperty SuperCall
 %type <exprNode> NewExpr NewExpr_NoBrace
-%type <exprNode> CallExpr CallExpr_NoBrace
+%type <exprNode> CallExpr CallExpr_NoBrace CallMemberExpr CallMemberExpr_NoBrace
 %type <exprNode> OptionalExpr OptionalExpr_NoBrace
 %type <exprNode> LeftHandSideExpr LeftHandSideExpr_NoBrace
 %type <exprNode> UpdateExpr UpdateExpr_NoBrace
-%type <exprNode> UnaryExpr UnaryExpr_NoBrace
+%type <exprNode> UnaryExpr UnaryExpr_NoBrace UnaryExpr_Common
 %type <exprNode> ExponentialExpr ExponentialExpr_NoBrace
 
 %type <opVal> MultiplicativeOperator
@@ -135,14 +157,27 @@ jslex(JSSTYPE *yylval, JSLTYPE *loc, Driver * driver);
 %type <exprNode> ShortCircuitExpr ShortCircuitExpr_NoBrace
 %type <exprNode> ConditionalExpr ConditionalExpr_NoBrace
 %type <exprNode> AssignmentExpr AssignmentExpr_NoBrace
-%type <exprNode> Expr Expr_NoBrace
+%type <exprNode> Expr Expr_NoBrace ExprOpt
 
 %type <stmtNode> Block BlockStmt VariableStmt EmptyStmt
 %type <stmtNode> ExprStmt IfStmt BreakableStmt
 %type <stmtNode> ContinueStmt BreakStmt ReturnStmt WithStmt
 %type <stmtNode> LabelledStmt ThrowStmt TryStmt DebuggerStmt
-%type <stmtNode> Stmt LabelledItem
+%type <stmtNode> IterationStmt DoWhileStmt WhileStmt ForStmt
+%type <stmtNode> Stmt LabelledItem StmtListItem
 
+%type <destructuringNode> BindingElement BindingRestElement SingleNameBinding
+
+%type <destructuringNodeVec> UniqueFormalParameters FormalParameters
+%type <destructuringNodeVec> FormalParameterList
+%type <destructuringNode> FunctionRestParameter FormalParameter
+
+%type <exprNodeVec> Arguments ArgumentList
+
+%type <stmtNodeVec> StmtList ScriptBody
+
+%type <exprNode> FunctionExpr
+%type <stmtNodeVec> FunctionBody FunctionStmtList
 
 %%
 
@@ -185,11 +220,17 @@ LabelIdentifier:
 	  IdentifierNotReserved { $$ = new IdentifierNode(@1, $1); }
 	;
 
-/* 12.2 Primary Expr */
+BindingIdentifier_Str:
+	  IdentifierNotReserved
+	;
+
+/* 12.2 Primary Expression */
 
 PrimaryExpr:
 	  PrimaryExpr_NoBrace
-	| ObjectLiteral
+	| ObjectLiteral {
+		UNIMPLEMENTED;
+	}
 	| FunctionExpr
 	/*| ClassExpr
 	| GeneratorExpr
@@ -199,21 +240,56 @@ PrimaryExpr:
 	;
 
 PrimaryExpr_NoBrace:
-	  THIS
+	  THIS {
+		  $$ = new ThisNode(@1);
+	}
 	| IdentifierReference
 	| Literal
-	| ArrayLiteral
-	| CoverParenthesisedExprAndArrowParameterList
+	| ArrayLiteral {
+		UNIMPLEMENTED;
+	}
+	| CoverParenthesisedExprAndArrowParameterList {
+		ExprNode * expr = $1->toExpr();
+
+		if (!expr)
+		{
+			yyerror(&@1, driver, "Syntax error: "
+			"arrow function parameters found where parenthesised "
+			"expression expected");
+			YYERROR;
+		}
+
+		$$ = expr;
+	}
 	;
 
 CoverParenthesisedExprAndArrowParameterList:
-	  '(' Expr ')'
-	| '(' Expr ',' ')'
-	| '(' ')'
-	| '(' ELLIPSIS BindingIdentifier ')'
-	| '(' ELLIPSIS BindingPattern ')'
-	| '(' Expr ',' ELLIPSIS BindingIdentifier ')'
-	| '(' Expr ',' ELLIPSIS BindingPattern ')'
+	  '(' Expr ')' {
+		$$ = new CoverParenthesisedExprAndArrowParameterListNode(
+		    loc_from(@1, @3), $2);
+	}
+	| '(' Expr ',' ')' {
+		$$ = new CoverParenthesisedExprAndArrowParameterListNode(
+		    loc_from(@1, @4), $2);
+	}
+	| '(' ')'  {
+		$$ = new CoverParenthesisedExprAndArrowParameterListNode(
+		    loc_from(@1, @2), NULL);
+	}
+	| '(' ELLIPSIS BindingIdentifier ')' {
+		$$ = new CoverParenthesisedExprAndArrowParameterListNode(
+		    loc_from(@1, @4), NULL, $3);
+	}
+	| '(' ELLIPSIS BindingPattern ')' {
+		UNIMPLEMENTED;
+	}
+	| '(' Expr ',' ELLIPSIS BindingIdentifier ')' {
+		$$ = new CoverParenthesisedExprAndArrowParameterListNode(
+		    loc_from(@1, @5), $2, $5);
+	}
+	| '(' Expr ',' ELLIPSIS BindingPattern ')' {
+		UNIMPLEMENTED;
+	}
 	;
 
 /* 12.2.4 Literals */
@@ -293,7 +369,9 @@ CoverInitializedName:
 	;
 
 Initialiser:
-	  '=' AssignmentExpr
+	  '=' AssignmentExpr {
+		$$ = $2;
+	}
 	;
 
 TemplateLiteral:
@@ -309,10 +387,16 @@ MemberExpr:
 	| MemberExpr '.' IDENTIFIER {
 		$$ = new AccessorNode($1, new IdentifierNode(@3, $3));
 	}
-	// | MemberExpr TemplateLiteral
+	| MemberExpr TemplateLiteral {
+		UNIMPLEMENTED;
+	}
 	| SuperProperty
-	| MetaProperty
-	| NEW MemberExpr Arguments
+	| MetaProperty {
+		UNIMPLEMENTED;
+	}
+	| NEW MemberExpr Arguments {
+		UNIMPLEMENTED;
+	}
 	;
 
 MemberExpr_NoBrace:
@@ -323,9 +407,15 @@ MemberExpr_NoBrace:
 	| MemberExpr_NoBrace '.' IDENTIFIER {
 		$$ = new AccessorNode($1, new IdentifierNode(@3, $3));
 	}
-	//| MemberExpr_NoBrace TemplateLiteral
-	| SuperProperty
-	| MetaProperty
+	| MemberExpr_NoBrace TemplateLiteral {
+		UNIMPLEMENTED;
+	}
+	| SuperProperty {
+		UNIMPLEMENTED;
+	}
+	| MetaProperty {
+		UNIMPLEMENTED;
+	}
 	| NEW MemberExpr Arguments
 	;
 
@@ -369,7 +459,9 @@ NewExpr_NoBrace:
 CallExpr:
 	  CallMemberExpr
 	| SuperCall
-	| CallExpr Arguments
+	| CallExpr Arguments {
+		$$ = new FunCallNode($1, $2);
+	}
 	| CallExpr '[' Expr ']' {
 		$$ = new AccessorNode($1, $3);
 	}
@@ -384,7 +476,9 @@ CallExpr:
 CallExpr_NoBrace:
 	  CallMemberExpr_NoBrace
 	| SuperCall
-	| CallExpr_NoBrace Arguments
+	| CallExpr_NoBrace Arguments {
+		$$ = new FunCallNode($1, $2);
+	}
 	| CallExpr_NoBrace '[' Expr ']' {
 		$$ = new AccessorNode($1, $3);
 	}
@@ -397,44 +491,80 @@ CallExpr_NoBrace:
 	;
 
 CallMemberExpr:
-	  MemberExpr Arguments
+	  MemberExpr Arguments {
+		$$ = new FunCallNode($1, $2);
+	}
 	;
 
 CallMemberExpr_NoBrace:
-	  MemberExpr_NoBrace Arguments
+	  MemberExpr_NoBrace Arguments {
+		$$ = new FunCallNode($1, $2);
+	}
 	;
 
 SuperCall:
-	  SUPER Arguments
+	  SUPER Arguments {
+		UNIMPLEMENTED;
+	}
 	;
 
 ImportCall:
-	  IMPORT '(' AssignmentExpr ')'
+	  IMPORT '(' AssignmentExpr ')' {
+		UNIMPLEMENTED;
+	}
 	;
 
 Arguments:
-	  '(' ')'
-	| '(' ArgumentList ')'
+	  '(' ')' {
+		$$ = NULL;
+	}
+	| '(' ArgumentList ')' {
+		$$ = $2;
+	}
 	;
 
 ArgumentList:
-	  AssignmentExpr
-	| ELLIPSIS AssignmentExpr
-	| ArgumentList ',' AssignmentExpr
-	| ArgumentList ',' ELLIPSIS AssignmentExpr
+	  AssignmentExpr {
+		$$ = new std::vector<ExprNode*>;
+		$$->push_back($1);
+	}
+	| ELLIPSIS AssignmentExpr {
+		$$ = new std::vector<ExprNode*>;
+		$$->push_back(new SpreadNode($2));
+	}
+	| ArgumentList ',' AssignmentExpr {
+		$$ = $1;
+		$$->push_back($3);
+	}
+	| ArgumentList ',' ELLIPSIS AssignmentExpr {
+		$$ = $1;
+		$$->push_back(new SpreadNode($4));
+	}
 	;
 
 /* todo OptionalExpr */
 OptionalExpr:
-	  MemberExpr OptionalChain
-	| CallExpr OptionalChain
-	| OptionalExpr OptionalChain
+	  MemberExpr OptionalChain {
+		UNIMPLEMENTED;
+	}
+	| CallExpr OptionalChain {
+		UNIMPLEMENTED;
+	}
+	| OptionalExpr OptionalChain {
+		UNIMPLEMENTED;
+	}
 	;
 
 OptionalExpr_NoBrace:
-	  MemberExpr_NoBrace OptionalChain
-	| CallExpr_NoBrace OptionalChain
-	| OptionalExpr_NoBrace OptionalChain
+	  MemberExpr_NoBrace OptionalChain {
+		UNIMPLEMENTED;
+	}
+	| CallExpr_NoBrace OptionalChain {
+		UNIMPLEMENTED;
+	}
+	| OptionalExpr_NoBrace OptionalChain {
+		UNIMPLEMENTED;
+	}
 	;
 
 OptionalChain:
@@ -463,57 +593,84 @@ LeftHandSideExpr_NoBrace:
 /* 12.4 Update Exprs */
 UpdateExpr:
 	  LeftHandSideExpr
-	| LeftHandSideExpr PLUSPLUS
-	| LeftHandSideExpr MINUSMINUS
-	| PLUSPLUS UnaryExpr
-	| MINUSMINUS UnaryExpr
+	| LeftHandSideExpr PLUSPLUS {
+		$$ = new UnaryOpNode($1, @2, UnaryOp::kPostInc, true);
+	}
+	| LeftHandSideExpr MINUSMINUS {
+		$$ = new UnaryOpNode($1, @2, UnaryOp::kPostDec, true);
+	}
+	| PLUSPLUS UnaryExpr {
+		$$ = new UnaryOpNode($2, @1, UnaryOp::kPreInc);
+	}
+	| MINUSMINUS UnaryExpr {
+		$$ = new UnaryOpNode($2, @1, UnaryOp::kPreDec);
+	}
 	;
 
 UpdateExpr_NoBrace:
 	  LeftHandSideExpr_NoBrace
-	| LeftHandSideExpr_NoBrace PLUSPLUS
-	| LeftHandSideExpr_NoBrace MINUSMINUS
-	| PLUSPLUS UnaryExpr
-	| MINUSMINUS UnaryExpr
+	| LeftHandSideExpr_NoBrace PLUSPLUS {
+		$$ = new UnaryOpNode($1, @2, UnaryOp::kPostInc, true);
+	}
+	| LeftHandSideExpr_NoBrace MINUSMINUS {
+		$$ = new UnaryOpNode($1, @2, UnaryOp::kPostDec, true);
+	}
+	| PLUSPLUS UnaryExpr {
+		$$ = new UnaryOpNode($2, @1, UnaryOp::kPreInc);
+	}
+	| MINUSMINUS UnaryExpr {
+		$$ = new UnaryOpNode($2, @1, UnaryOp::kPreDec);
+	}
 	;
 
 /* 12.5 Unary Operators */
 UnaryExpr:
 	  UpdateExpr
-	| DELETE UnaryExpr
-	| VOID UnaryExpr
-	| TYPEOF UnaryExpr
-	| '+' UnaryExpr
-	| '-' UnaryExpr
-	| '~' UnaryExpr
-	| '!' UnaryExpr
+	| UnaryExpr_Common
 	/* | AwaitExpr */
 	;
 
 UnaryExpr_NoBrace:
 	  UpdateExpr_NoBrace
-	| DELETE UnaryExpr
-	| VOID UnaryExpr
-	| TYPEOF UnaryExpr
-	| '+' UnaryExpr
-	| '-' UnaryExpr
-	| '~' UnaryExpr
-	| '!' UnaryExpr
-	/* | AwaitExpr */
+	| UnaryExpr_Common
+	/* | AwaitExpr_NoBrace */
 	;
+
+UnaryExpr_Common:
+	  DELETE UnaryExpr {
+		$$ = new UnaryOpNode($2, @1, UnaryOp::kDelete);
+	}
+	| VOID UnaryExpr {
+		$$ = new UnaryOpNode($2, @1, UnaryOp::kVoid);
+	}
+	| TYPEOF UnaryExpr {
+		$$ = new UnaryOpNode($2, @1, UnaryOp::kTypeOf);
+	}
+	| '+' UnaryExpr {
+		$$ = new UnaryOpNode($2, @1, UnaryOp::kPlus);
+	}
+	| '-' UnaryExpr {
+		$$ = new UnaryOpNode($2, @1, UnaryOp::kMinus);
+	}
+	| '~' UnaryExpr {
+		$$ = new UnaryOpNode($2, @1, UnaryOp::kBitNot);
+	}
+	| '!' UnaryExpr {
+		$$ = new UnaryOpNode($2, @1, UnaryOp::kNot);
+	}
 
 /* 12.6 Exponential Operator */
 ExponentialExpr:
 	  UnaryExpr
 	| UpdateExpr STARSTAR ExponentialExpr {
-		$$ = new BinOpNode($1, $3, Operator::kExp);
+		$$ = new BinOpNode($1, $3, BinOp::kExp);
 	}
 	;
 
 ExponentialExpr_NoBrace:
 	  UnaryExpr_NoBrace
 	| UpdateExpr_NoBrace STARSTAR ExponentialExpr {
-		$$ = new BinOpNode($1, $3, Operator::kExp);
+		$$ = new BinOpNode($1, $3, BinOp::kExp);
 	}
 	;
 
@@ -535,29 +692,29 @@ MultiplicativeExpr_NoBrace:
 	;
 
 MultiplicativeOperator:
-	  '*' { $$ = Operator::kMul; }
-	| '/' { $$ = Operator::kDiv; }
-	| '%' { $$ = Operator::kMod; }
+	  '*' { $$ = BinOp::kMul; }
+	| '/' { $$ = BinOp::kDiv; }
+	| '%' { $$ = BinOp::kMod; }
 	;
 
 /* 12.8 Additive Operators */
 AdditiveExpr:
 	  MultiplicativeExpr
 	| AdditiveExpr '+' MultiplicativeExpr {
-		$$ = new BinOpNode($1, $3, Operator::kAdd);
+		$$ = new BinOpNode($1, $3, BinOp::kAdd);
 	}
 	| AdditiveExpr '-' MultiplicativeExpr {
-		$$ = new BinOpNode($1, $3, Operator::kSub);
+		$$ = new BinOpNode($1, $3, BinOp::kSub);
 	}
 	;
 
 AdditiveExpr_NoBrace:
 	  MultiplicativeExpr_NoBrace
 	| AdditiveExpr_NoBrace '+' MultiplicativeExpr {
-		$$ = new BinOpNode($1, $3, Operator::kAdd);
+		$$ = new BinOpNode($1, $3, BinOp::kAdd);
 	}
 	| AdditiveExpr_NoBrace '-' MultiplicativeExpr {
-		$$ = new BinOpNode($1, $3, Operator::kSub);
+		$$ = new BinOpNode($1, $3, BinOp::kSub);
 	}
 	;
 
@@ -565,26 +722,26 @@ AdditiveExpr_NoBrace:
 ShiftExpr:
 	  AdditiveExpr
 	| ShiftExpr LSHIFT AdditiveExpr{
-		$$ = new BinOpNode($1, $3, Operator::kLShift);
+		$$ = new BinOpNode($1, $3, BinOp::kLShift);
 	}
 	| ShiftExpr RSHIFT AdditiveExpr {
-		$$ = new BinOpNode($1, $3, Operator::kRShift);
+		$$ = new BinOpNode($1, $3, BinOp::kRShift);
 	}
 	| ShiftExpr URSHIFT AdditiveExpr {
-		$$ = new BinOpNode($1, $3, Operator::kURShift);
+		$$ = new BinOpNode($1, $3, BinOp::kURShift);
 	}
 	;
 
 ShiftExpr_NoBrace:
 	  AdditiveExpr_NoBrace
 	| ShiftExpr_NoBrace LSHIFT AdditiveExpr {
-		$$ = new BinOpNode($1, $3, Operator::kLShift);
+		$$ = new BinOpNode($1, $3, BinOp::kLShift);
 	}
 	| ShiftExpr_NoBrace RSHIFT AdditiveExpr {
-		$$ = new BinOpNode($1, $3, Operator::kRShift);
+		$$ = new BinOpNode($1, $3, BinOp::kRShift);
 	}
 	| ShiftExpr_NoBrace URSHIFT AdditiveExpr {
-		$$ = new BinOpNode($1, $3, Operator::kURShift);
+		$$ = new BinOpNode($1, $3, BinOp::kURShift);
 	}
 	;
 
@@ -592,44 +749,44 @@ ShiftExpr_NoBrace:
 RelationalExpr:
 	  ShiftExpr
 	| RelationalExpr '<' ShiftExpr {
-		$$ = new BinOpNode($1, $3, Operator::kLessThan);
+		$$ = new BinOpNode($1, $3, BinOp::kLessThan);
 	}
 	| RelationalExpr '>' ShiftExpr {
-		$$ = new BinOpNode($1, $3, Operator::kGreaterThan);
+		$$ = new BinOpNode($1, $3, BinOp::kGreaterThan);
 	}
 	| RelationalExpr LTE ShiftExpr {
-		$$ = new BinOpNode($1, $3, Operator::kLessThanOrEq);
+		$$ = new BinOpNode($1, $3, BinOp::kLessThanOrEq);
 	}
 	| RelationalExpr GTE ShiftExpr {
-		$$ = new BinOpNode($1, $3, Operator::kGreaterThanOrEq);
+		$$ = new BinOpNode($1, $3, BinOp::kGreaterThanOrEq);
 	}
 	| RelationalExpr INSTANCEOF ShiftExpr {
-		$$ = new BinOpNode($1, $3, Operator::kInstanceOf);
+		$$ = new BinOpNode($1, $3, BinOp::kInstanceOf);
 	}
 	| RelationalExpr IN ShiftExpr {
-		$$ = new BinOpNode($1, $3, Operator::kAmong);
+		$$ = new BinOpNode($1, $3, BinOp::kAmong);
 	}
 	;
 
 RelationalExpr_NoBrace:
 	  ShiftExpr_NoBrace
 	| RelationalExpr_NoBrace '<' ShiftExpr {
-		$$ = new BinOpNode($1, $3, Operator::kLessThan);
+		$$ = new BinOpNode($1, $3, BinOp::kLessThan);
 	}
 	| RelationalExpr_NoBrace '>' ShiftExpr {
-		$$ = new BinOpNode($1, $3, Operator::kGreaterThan);
+		$$ = new BinOpNode($1, $3, BinOp::kGreaterThan);
 	}
 	| RelationalExpr_NoBrace LTE ShiftExpr {
-		$$ = new BinOpNode($1, $3, Operator::kLessThanOrEq);
+		$$ = new BinOpNode($1, $3, BinOp::kLessThanOrEq);
 	}
 	| RelationalExpr_NoBrace GTE ShiftExpr {
-		$$ = new BinOpNode($1, $3, Operator::kGreaterThanOrEq);
+		$$ = new BinOpNode($1, $3, BinOp::kGreaterThanOrEq);
 	}
 	| RelationalExpr_NoBrace INSTANCEOF ShiftExpr {
-		$$ = new BinOpNode($1, $3, Operator::kInstanceOf);
+		$$ = new BinOpNode($1, $3, BinOp::kInstanceOf);
 	}
 	| RelationalExpr_NoBrace IN ShiftExpr {
-		$$ = new BinOpNode($1, $3, Operator::kAmong);
+		$$ = new BinOpNode($1, $3, BinOp::kAmong);
 	}
 	;
 
@@ -637,32 +794,32 @@ RelationalExpr_NoBrace:
 EqualityExpr:
 	  RelationalExpr
 	| EqualityExpr EQ RelationalExpr {
-		$$ = new BinOpNode($1, $3, Operator::kEquals);
+		$$ = new BinOpNode($1, $3, BinOp::kEquals);
 	}
 	| EqualityExpr NEQ RelationalExpr {
-		$$ = new BinOpNode($1, $3, Operator::kNotEquals);
+		$$ = new BinOpNode($1, $3, BinOp::kNotEquals);
 	}
 	| EqualityExpr STRICTEQ RelationalExpr {
-		$$ = new BinOpNode($1, $3, Operator::kStrictEquals);
+		$$ = new BinOpNode($1, $3, BinOp::kStrictEquals);
 	}
 	| EqualityExpr STRICTNEQ RelationalExpr {
-		$$ = new BinOpNode($1, $3, Operator::kStrictNotEquals);
+		$$ = new BinOpNode($1, $3, BinOp::kStrictNotEquals);
 	}
 	;
 
 EqualityExpr_NoBrace:
 	  RelationalExpr_NoBrace
 	| EqualityExpr_NoBrace EQ RelationalExpr {
-		$$ = new BinOpNode($1, $3, Operator::kEquals);
+		$$ = new BinOpNode($1, $3, BinOp::kEquals);
 	}
 	| EqualityExpr_NoBrace NEQ RelationalExpr {
-		$$ = new BinOpNode($1, $3, Operator::kNotEquals);
+		$$ = new BinOpNode($1, $3, BinOp::kNotEquals);
 	}
 	| EqualityExpr_NoBrace STRICTEQ RelationalExpr {
-		$$ = new BinOpNode($1, $3, Operator::kStrictEquals);
+		$$ = new BinOpNode($1, $3, BinOp::kStrictEquals);
 	}
 	| EqualityExpr_NoBrace STRICTNEQ RelationalExpr {
-		$$ = new BinOpNode($1, $3, Operator::kStrictNotEquals);
+		$$ = new BinOpNode($1, $3, BinOp::kStrictNotEquals);
 	}
 	;
 
@@ -670,42 +827,42 @@ EqualityExpr_NoBrace:
 BitwiseANDExpr:
 	  EqualityExpr
 	| BitwiseANDExpr '&' EqualityExpr {
-		$$ = new BinOpNode($1, $3, Operator::kBitAnd);
+		$$ = new BinOpNode($1, $3, BinOp::kBitAnd);
 	}
 	;
 
 BitwiseANDExpr_NoBrace:
 	  EqualityExpr_NoBrace
 	| BitwiseANDExpr_NoBrace '&' EqualityExpr {
-		$$ = new BinOpNode($1, $3, Operator::kBitAnd);
+		$$ = new BinOpNode($1, $3, BinOp::kBitAnd);
 	}
 	;
 
 BitwiseXORExpr:
 	  BitwiseANDExpr
 	| BitwiseXORExpr '^' BitwiseANDExpr {
-		$$ = new BinOpNode($1, $3, Operator::kBitXor);
+		$$ = new BinOpNode($1, $3, BinOp::kBitXor);
 	}
 	;
 
 BitwiseXORExpr_NoBrace:
 	  BitwiseANDExpr_NoBrace
 	| BitwiseXORExpr_NoBrace '^' BitwiseANDExpr {
-		$$ = new BinOpNode($1, $3, Operator::kBitXor);
+		$$ = new BinOpNode($1, $3, BinOp::kBitXor);
 	}
 	;
 
 BitwiseORExpr:
 	  BitwiseXORExpr
 	| BitwiseORExpr '|' BitwiseXORExpr {
-		$$ = new BinOpNode($1, $3, Operator::kBitOr);
+		$$ = new BinOpNode($1, $3, BinOp::kBitOr);
 	}
 	;
 
 BitwiseORExpr_NoBrace:
 	  BitwiseXORExpr_NoBrace
 	| BitwiseORExpr_NoBrace '|' BitwiseXORExpr {
-		$$ = new BinOpNode($1, $3, Operator::kBitOr);
+		$$ = new BinOpNode($1, $3, BinOp::kBitOr);
 	}
 	;
 
@@ -713,34 +870,34 @@ BitwiseORExpr_NoBrace:
 LogicalANDExpr:
 	  BitwiseORExpr
 	| LogicalANDExpr LOGAND BitwiseORExpr {
-		$$ = new BinOpNode($1, $3, Operator::kAnd);
+		$$ = new BinOpNode($1, $3, BinOp::kAnd);
 	}
 	;
 
 LogicalANDExpr_NoBrace:
 	  BitwiseORExpr_NoBrace
 	| LogicalANDExpr_NoBrace LOGAND BitwiseORExpr {
-		$$ = new BinOpNode($1, $3, Operator::kAnd);
+		$$ = new BinOpNode($1, $3, BinOp::kAnd);
 	}
 	;
 
 LogicalORExpr:
 	  LogicalANDExpr
 	| LogicalORExpr LOGOR LogicalANDExpr {
-		$$ = new BinOpNode($1, $3, Operator::kOr);
+		$$ = new BinOpNode($1, $3, BinOp::kOr);
 	}
 	;
 
 LogicalORExpr_NoBrace:
 	  LogicalANDExpr_NoBrace
 	| LogicalORExpr_NoBrace LOGOR LogicalANDExpr {
-		$$ = new BinOpNode($1, $3, Operator::kOr);
+		$$ = new BinOpNode($1, $3, BinOp::kOr);
 	}
 	;
 
 CoalesceExpr:
 	  CoalesceExprHead QUESTIONQUESTION BitwiseORExpr {
-		$$ = new BinOpNode($1, $3, Operator::kCoalesce);
+		$$ = new BinOpNode($1, $3, BinOp::kCoalesce);
 	}
 	;
 
@@ -751,7 +908,7 @@ CoalesceExprHead:
 
 CoalesceExpr_NoBrace:
 	  CoalesceExprHead_NoBrace QUESTIONQUESTION BitwiseORExpr {
-		$$ = new BinOpNode($1, $3, Operator::kCoalesce);
+		$$ = new BinOpNode($1, $3, BinOp::kCoalesce);
 	}
 	;
 
@@ -773,36 +930,46 @@ ShortCircuitExpr_NoBrace:
 /* 12.14 Conditional Operator */
 ConditionalExpr:
 	  ShortCircuitExpr
-	| ShortCircuitExpr '?' AssignmentExpr ':'
-	    AssignmentExpr
+	| ShortCircuitExpr '?' AssignmentExpr ':' AssignmentExpr {
+		$$ = new ConditionalNode($1, $3, $5);
+	}
 	;
 
 ConditionalExpr_NoBrace:
 	  ShortCircuitExpr_NoBrace
-	| ShortCircuitExpr_NoBrace '?' AssignmentExpr ':'
-	    AssignmentExpr
+	| ShortCircuitExpr_NoBrace '?' AssignmentExpr ':' AssignmentExpr {
+		$$ = new ConditionalNode($1, $3, $5);
+	}
 	;
 
 /* 12.15 Assignment Operator */
 AssignmentExpr:
 	  ConditionalExpr
-	// | ObjectAssignmentPattern '=' AssignmentExpr
-	// | ArrayAssignmentPattern '=' AssignmentExpr
-	/* | YieldExpr
+	// virtual | ObjectAssignmentPattern '=' AssignmentExpr
+	// virtual | ArrayAssignmentPattern '=' AssignmentExpr
+	// | YieldExpr
 	| ArrowFunction
-	| AsyncArrowFunction */
-	| LeftHandSideExpr '=' AssignmentExpr
-	| LeftHandSideExpr ASSIGNOP AssignmentExpr
+	// | AsyncArrowFunction
+	| LeftHandSideExpr '=' AssignmentExpr {
+		$$ = new AssignNode($1, $3);
+	}
+	| LeftHandSideExpr ASSIGNOP AssignmentExpr {
+		UNIMPLEMENTED;
+	}
 	;
 
 AssignmentExpr_NoBrace:
 	  ConditionalExpr_NoBrace
 	// | ArrayAssignmentPattern '=' AssignmentExpr
-	/* | YieldExpr
+	// | YieldExpr
 	| ArrowFunction
-	| AsyncArrowFunction */
-	| LeftHandSideExpr_NoBrace '=' AssignmentExpr
-	| LeftHandSideExpr_NoBrace ASSIGNOP AssignmentExpr
+	// | AsyncArrowFunction
+	| LeftHandSideExpr_NoBrace '=' AssignmentExpr {
+		$$ = new AssignNode($1, $3);
+	}
+	| LeftHandSideExpr_NoBrace ASSIGNOP AssignmentExpr {
+		UNIMPLEMENTED;
+	}
 	;
 
 /* 12.15.5 Destructuring Assignment */
@@ -871,12 +1038,16 @@ DestructuringAssignmentTarget:
 /* 12.16 ',' Operator */
 Expr:
 	  AssignmentExpr
-	| Expr ',' AssignmentExpr
+	| Expr ',' AssignmentExpr {
+		$$ = new CommaNode($1, $3);
+	}
 	;
 
 Expr_NoBrace:
 	  AssignmentExpr_NoBrace
-	| Expr_NoBrace ',' AssignmentExpr
+	| Expr_NoBrace ',' AssignmentExpr {
+		$$ = new CommaNode($1, $3);
+	}
 	;
 
 Stmt:
@@ -921,17 +1092,27 @@ BlockStmt:
 	;
 
 Block:
-	  '{' StmtList '}'
-	| '{' '}'
+	  '{' StmtList '}' {
+		$$ = new BlockNode(loc_from(@1, @3), $2);
+	}
+	| '{' '}' {
+		$$ = new BlockNode(loc_from(@1, @2), NULL);
+	}
 	;
 
 StmtList:
-	  StmtListItem
-	| StmtList StmtListItem
+	  StmtListItem {
+		$$ = new std::vector<StmtNode*>;
+		$$->push_back($1);
+	}
+	| StmtList StmtListItem {
+		$$ = $1;
+		$$->push_back($2);
+	}
 	;
 
 StmtListItem:
-	  Stmt { printf("Stmt parsed\n"); }
+	  Stmt
 	| Declaration
 	;
 
@@ -972,8 +1153,12 @@ VariableDeclaration:
 
 /* 13.3.3 Destructuring Binding Patterns */
 BindingPattern:
-	  ObjectBindingPattern
-	| ArrayBindingPattern
+	  ObjectBindingPattern {
+		UNIMPLEMENTED;
+	}
+	| ArrayBindingPattern {
+		UNIMPLEMENTED;
+	}
 	;
 
 ObjectBindingPattern:
@@ -1020,13 +1205,21 @@ BindingProperty:
 
 BindingElement:
 	  SingleNameBinding
-	| BindingPattern
-	| BindingPattern Initialiser
+	| BindingPattern {
+		UNIMPLEMENTED;
+	}
+	| BindingPattern Initialiser {
+		UNIMPLEMENTED;
+	}
 	;
 
 SingleNameBinding:
-	  BindingIdentifier
-	| BindingIdentifier Initialiser
+	  BindingIdentifier {
+		$$ = new SingleNameDestructuringNode($1);
+	}
+	| BindingIdentifier Initialiser {
+		$$ = new SingleNameDestructuringNode($1, $2);
+	}
 	;
 
 BindingRestElement:
@@ -1044,13 +1237,22 @@ EmptyStmt:
  * We therefore need a "no left curly bracket start" alternative of Expr.
  */
 ExprStmt:
-	  Expr_NoBrace ';'
-	| Expr_NoBrace error { ASI; }
+	  Expr_NoBrace ';' {
+		$$ = new ExprStmtNode($1);
+	}
+	| Expr_NoBrace error {
+		ASI;
+		$$ = new ExprStmtNode($1);
+	}
 	;
 
 IfStmt:
-	  IF '(' Expr ')' Stmt ELSE Stmt
-	| IF '(' Expr ')' Stmt %prec PLAIN_IF
+	  IF '(' Expr ')' Stmt ELSE Stmt {
+		$$ = new IfNode(loc_from(@1, @7), $3, $5, $7);
+	}
+	| IF '(' Expr ')' Stmt %prec PLAIN_IF {
+		$$ = new IfNode(loc_from(@1, @5), $3, $5, NULL);
+	}
 	;
 
 IterationStmt:
@@ -1062,12 +1264,16 @@ IterationStmt:
 
 DoWhileStmt: /* [Yield, Await, Return] */
 	  DO Stmt /* [?Yield, ?Await, ?Return] */ WHILE '('
-	  Expr /* [+In, ?Yield, ?Await] */ ')' ';'
+	  Expr /* [+In, ?Yield, ?Await] */ ')' ';' {
+		$$ = new DoWhileNode(loc_from(@1, @7), $5, $2);
+	}
 	;
 
 WhileStmt: /* [Yield, Await, Return] */
 	  WHILE '(' Expr /* [+In, ?Yield, ?Await] */ ')'
-	  Stmt /* [?Yield, ?Await, ?Return] */
+	  Stmt /* [?Yield, ?Await, ?Return] */ {
+		$$ = new WhileNode(loc_from(@1, @5), $3, $5);
+	}
 	;
 
 /*
@@ -1088,11 +1294,26 @@ ForStmt[Yield, Await, Return] :
 
 ForStmt: /* [Yield, Await, Return] */
 	  FOR '(' ExprOpt ';' ExprOpt ';' ExprOpt ')'
-	  Stmt
+	  Stmt {
+		$$ = new ForNode(loc_from(@1, @9), new ExprStmtNode($3), $5,
+		    $7);
+	}
 	| FOR '(' VAR VariableDeclarationList ';' ExprOpt ';'
-	  ExprOpt ')' Stmt
+	  ExprOpt ')' Stmt {
+		/*
+		$$ = new ForNode(loc_from(@1, @10), $4 ??? , $6, $8,
+		    $10);
+		*/
+		UNIMPLEMENTED;
+	}
 	| FOR '(' LexicalDeclaration ExprOpt ';' ExprOpt ')'
-	  Stmt
+	  Stmt {
+		/*
+		$$ = new ForNode(loc_from(@1, @10), $4 ??? , $6, $8,
+		    $10);
+		*/
+		UNIMPLEMENTED;
+	}
 	;
 
 ExprOpt:
@@ -1226,17 +1447,27 @@ UniqueFormalParameters:
 	;
 
 FormalParameters:
-	  %empty
-	| FunctionRestParameter
+	  %empty { $$ = NULL; }
+	| FunctionRestParameter {
+		UNIMPLEMENTED;
+	}
 	| FormalParameterList
 	| FormalParameterList ','
-	| FormalParameterList ',' FunctionRestParameter
+	| FormalParameterList ',' FunctionRestParameter {
+		UNIMPLEMENTED;
+	}
 	;
 
 
 FormalParameterList:
-	  FormalParameter
-	| FormalParameterList ',' FormalParameter
+	  FormalParameter {
+		$$ = new std::vector<DestructuringNode*>;
+		$$->push_back($1);
+	}
+	| FormalParameterList ',' FormalParameter {
+		$$ = $1;
+		$$->push_back($3);
+	}
 	;
 
 FunctionRestParameter:
@@ -1256,9 +1487,13 @@ FunctionDeclaration:
 	;
 
 FunctionExpr:
-	  FUNCTION BindingIdentifier '(' FormalParameters ')' '{' FunctionBody
-	  '}'
-	| FUNCTION '(' FormalParameters ')' '{' FunctionBody '}'
+	  FUNCTION BindingIdentifier_Str '(' FormalParameters ')' '{' FunctionBody
+	  '}' {
+		$$ = new FunctionExprNode(loc_from(@1, @8), $2, $4, $7);
+	}
+	| FUNCTION '(' FormalParameters ')' '{' FunctionBody '}' {
+		$$ = new FunctionExprNode(loc_from(@1, @7), NULL, $3, $6);
+	}
 	;
 
 FunctionBody:
@@ -1267,13 +1502,43 @@ FunctionBody:
 
 FunctionStmtList:
 	  StmtList
-	| %empty
+	| %empty { $$ = NULL; }
 	;
+
+ArrowFunction:
+	  ArrowParameters /* [no LineTerminator here] */ FARROW ConciseBody
+	;
+
+ArrowParameters:
+	  BindingIdentifier
+	| CoverParenthesisedExprAndArrowParameterList
+	;
+
+ConciseBody:
+	  ExpressionBody
+	;
+
+ExpressionBody:
+	  AssignmentExpr_NoBrace
+	;
+
+/*
+When processing an instance of the production
+
+    ArrowParameters[Yield, Await] :
+	CoverParenthesizedExpressionAndArrowParameterList[?Yield, ?Await]
+
+the interpretation of CoverParenthesizedExpressionAndArrowParameterList is
+refined using the following grammar:
+
+ArrowFormalParameters[Yield, Await] :
+	( UniqueFormalParameters[?Yield, ?Await] )
+*/
 
 
 Script:
-	  ScriptBody
-	| %empty
+	  ScriptBody { driver->m_script = new ScriptNode(@1, $1); }
+	| %empty { driver->m_script = NULL; }
 	;
 
 ScriptBody:
@@ -1284,15 +1549,18 @@ ScriptBody:
 %%
 
 #if 0
+/* this is for byacc and prints possible shifts */
 void
 yyerror(Driver *driver, int yychar, int yystate, YYLTYPE *loc, char *text)
 {
 	register int yyn, count = 0;
-	if (((yyn = yysindex[yystate]) != 0) && (yyn < YYTABLESIZE)) {
-		printf("%d:%d: %s\n", loc->first_line + 1, loc->first_column,
+
+	printf("%d:%d: %s\n", loc->first_line + 1, loc->first_column,
 		    text);
 		print_highlight(driver->txt, loc->first_line, loc->first_column,
 		    loc->last_line, loc->last_column);
+
+	if (((yyn = yysindex[yystate]) != 0) && (yyn < YYTABLESIZE)) {
 		printf("got %s, but expected one of:\n\t", yyname[yychar]);
 		for (int i = ((yyn > 0) ? yyn : 0); i <= YYTABLESIZE; ++i) {
 			int tok = i - yyn;

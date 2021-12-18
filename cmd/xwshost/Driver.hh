@@ -1,6 +1,10 @@
 #ifndef DRIVER_HH_
 #define DRIVER_HH_
 
+namespace VM {
+class JSFunction;
+};
+
 #ifndef YY_TYPEDEF_YY_SCANNER_T
 #define YY_TYPEDEF_YY_SCANNER_T
 typedef void *yyscan_t;
@@ -23,7 +27,7 @@ class Driver {
 		kModule,
 	} m_resultType;
 
-	int generateBytecode();
+	VM::JSFunction *generateBytecode();
 };
 
 #endif /* DRIVER_HH_ */

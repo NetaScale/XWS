@@ -11,11 +11,14 @@
 #include "Driver.hh"
 #include "Scanner.ll.hh"
 #include "AST.hh"
+#include "VM.hh"
 
 int
 main(int argc, char *arg[])
 {
-	std::string tst("const fn = function fn(a, b) { a + b }\nfn(1, 2)");
+	std::string tst("const y = 40;\n"
+			"const fn = function fn(a, b) { return a + b + y; }\n"
+			"return fn(1, 2);");
 	Driver drv;
 	YY_BUFFER_STATE yybuf;
 
@@ -32,7 +35,9 @@ main(int argc, char *arg[])
 	/* And, finally, destroy this scanner. */
 	jslex_destroy(drv.scanner);
 
-	drv.generateBytecode();
+	VM::Interpreter interp(new VM::JSClosure(drv.generateBytecode()));
+	printf("INTERPRETATION BEGINS:\n");
+	interp.interpret();
 
 	return 0;
 }

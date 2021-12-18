@@ -567,7 +567,7 @@ class ReturnNode : public StmtNode {
 	    : StmtNode(expr->loc())
 	    , m_expr(expr) {};
 
-	int accept(Visitor &visitor) { throw "unimplemented"; }
+	int accept(Visitor &visitor);
 };
 
 class WithNode : public StmtNode {
@@ -701,7 +701,7 @@ class Visitor {
 	int visitForOf(ForOfNode *node);
 	int visitContinue(ContinueNode *node);
 	int visitBreak(BreakNode *node);
-	int visitReturn(ReturnNode *node);
+	virtual int visitReturn(ReturnNode *node, ExprNode * expr);
 	int visitWith(WithNode *node);
 	int visitLabelled(LabelledNode *node);
 	int visitThrow(ThrowNode *node);

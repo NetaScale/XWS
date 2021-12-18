@@ -41,6 +41,7 @@ class BytecodeGenerator : public Visitor {
 	std::stack<GenerationContext *> m_ctx;
 	std::stack<VM::JSFunction *> m_funcs;
 	std::stack<VM::BytecodeEncoder *> m_gens;
+	VM::JSFunction *m_script;
 
 	inline VM::BytecodeEncoder *coder() { return m_gens.top(); }
 
@@ -61,6 +62,7 @@ class BytecodeGenerator : public Visitor {
 	    ExprNode *rhs);
 
 	int visitExprStmt(ExprStmtNode *node, ExprNode *expr);
+	int visitReturn(ReturnNode *node, ExprNode *expr);
 
 	int visitSingleDecl(SingleDeclNode *node, DestructuringNode *lhs,
 	    ExprNode *rhs);
@@ -71,6 +73,8 @@ class BytecodeGenerator : public Visitor {
 
     public:
 	BytecodeGenerator();
+
+	VM::JSFunction *script() { return m_script; }
 };
 
 class DestructuringVisitor : public Visitor {
@@ -152,6 +156,7 @@ Hoister::visitSingleDecl(SingleDeclNode *node, DestructuringNode *lhs,
     ExprNode *rhs)
 {
 	lhs->accept(*this);
+	rhs->accept(*this);
 	return 0;
 }
 
@@ -161,7 +166,6 @@ Hoister::visitDecl(DeclNode *node, DeclNode::Type type,
 {
 	FOR_EACH (SingleDeclNode::Vec, it, *decls)
 		(*it)->accept(*this);
-
 	return 0;
 }
 
@@ -203,10 +207,9 @@ VM::JSFunction *
 BytecodeGenerator::enterNewFunction()
 {
 	VM::JSFunction *jsf = new VM::JSFunction;
-	VM::BytecodeEncoder *encoder = new VM::BytecodeEncoder(jsf->m_bytecode,
-	    jsf->m_literals);
+	VM::BytecodeEncoder *encoder = new VM::BytecodeEncoder(jsf);
 
-	m_funcs.push(new VM::JSFunction);
+	m_funcs.push(jsf);
 	m_gens.push(encoder);
 
 	return jsf;
@@ -222,8 +225,10 @@ BytecodeGenerator::exitFunction(DeclEnv *env)
 		if (it->second->m_type == Decl::kLocal)
 			m_funcs.top()->m_localNames.push_back(
 			    strdup(it->first.c_str()));
-		else if(it->second->m_type == Decl::kArg)
-			m_funcs.top()->m_paramNames[it->second->m_idx] = strdup(it->first.c_str());
+		else if (it->second->m_type == Decl::kArg) {
+			m_funcs.top()->m_paramNames[it->second->m_idx] = strdup(
+			    it->first.c_str());
+		}
 
 	m_gens.top()->emit0(VM::kPushUndefined);
 	m_gens.top()->emit0(VM::kReturn);
@@ -236,7 +241,7 @@ BytecodeGenerator::exitFunction(DeclEnv *env)
 int
 BytecodeGenerator::visitIdentifier(IdentifierNode *node, const char *ident)
 {
-	m_gens.top()->emit1(VM::kPushLiteral, m_gens.top()->litStr(ident));
+	m_gens.top()->emit1(VM::kResolve, m_gens.top()->litStr(ident));
 	return 0;
 }
 
@@ -308,6 +313,14 @@ BytecodeGenerator::visitExprStmt(ExprStmtNode *node, ExprNode *expr)
 }
 
 int
+BytecodeGenerator::visitReturn(ReturnNode *node, ExprNode *expr)
+{
+	expr->accept(*this);
+	m_gens.top()->emit0(VM::kReturn);
+	return 0;
+}
+
+int
 DestructuringVisitor::visitSingleNameDestructuring(
     SingleNameDestructuringNode *node, IdentifierNode *ident,
     ExprNode *initialiser)
@@ -365,16 +378,16 @@ BytecodeGenerator::visitScript(ScriptNode *node, StmtNode::Vec *stmts)
 	for (StmtNode::Vec::iterator it = stmts->begin(); it != stmts->end();
 	     it++)
 		(*it)->accept(*this);
-	exitFunction(node);
+	m_script = exitFunction(node);
 	return 0;
 }
 
-int
+VM::JSFunction *
 Driver::generateBytecode()
 {
 	Hoister hoister;
 	BytecodeGenerator visitor;
 	m_script->accept(hoister);
 	m_script->accept(visitor);
-	return 0;
+	return visitor.script();
 }

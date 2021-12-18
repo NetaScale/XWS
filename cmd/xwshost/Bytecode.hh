@@ -7,6 +7,7 @@ namespace VM {
 
 class JSValue;
 class JSObject;
+class JSFunction;
 
 enum Op {
 	kPushArg,	/* u8 argIdx */
@@ -25,12 +26,13 @@ enum Op {
 };
 
 class BytecodeEncoder {
-	std::vector<char> &m_output;
-	std::vector<JSValue> & m_litOutput;
+	//std::vector<char> &m_output;
+	//std::vector<JSValue> & m_litOutput;
+	JSFunction * m_fun;
 
     public:
-	BytecodeEncoder(std::vector<char> &output, std::vector<JSValue> & litOutput)
-	    : m_output(output), m_litOutput(litOutput) {};
+	BytecodeEncoder(JSFunction * fun)
+	    : m_fun(fun) {};
 
 	void emit0(Op op);
 	void emit1(Op op, char arg1);

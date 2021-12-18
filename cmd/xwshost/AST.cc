@@ -142,6 +142,19 @@ Visitor::visitSingleNameDestructuring(SingleNameDestructuringNode *node,
 }
 
 int
+ReturnNode::accept(Visitor &visitor)
+{
+	return visitor.visitReturn(this, m_expr);
+}
+
+int
+Visitor::visitReturn(ReturnNode *node,  ExprNode *expr)
+{
+	expr->accept(*this);
+	return 0;
+}
+
+int
 SingleNameDestructuringNode::accept(Visitor &visitor)
 {
 	return visitor.visitSingleNameDestructuring(this, m_ident,

@@ -1398,8 +1398,12 @@ BreakStmt:
 	;
 
 ReturnStmt:
-	  RETURN ';'
-	| RETURN /* [no LineTerminator here] */ Expr ';'
+	  RETURN ';' {
+		$$ = new ReturnNode(NULL);
+	}
+	| RETURN /* [no LineTerminator here] */ Expr ';' {
+		$$ = new ReturnNode($2);
+	}
 	;
 
 WithStmt:

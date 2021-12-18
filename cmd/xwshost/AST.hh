@@ -1,6 +1,7 @@
 #ifndef AST_HH_
 #define AST_HH_
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -95,6 +96,37 @@ struct UnaryOp {
 	};
 };
 
+struct Decl {
+	enum Type { kArg, kLocal, kGlobal } m_type;
+	unsigned int m_idx;
+
+	Decl(Type type, unsigned int idx = 0)
+	    : m_type(type)
+	    , m_idx(idx)
+	{
+	}
+};
+
+class DeclEnv {
+    protected:
+	friend class Hoister;
+	friend class BytecodeGenerator;
+	DeclEnv * m_parent;
+	std::map<std::string, Decl *> m_decls;
+
+    public:
+	enum Type { kGlobal, kFunction, kBlock } m_type;
+
+	DeclEnv(Type type)
+	    : m_type(type) {};
+
+	void defineArg(const char *name, unsigned int idx);
+	/** define a lexically scoped variable */
+	void defineLocal(const char *name);
+	/** define a function/global-scoped variable */
+	void defineVar(const char *name);
+};
+
 #include "Parser.tab.hh"
 
 static inline JSLTYPE
@@ -116,7 +148,7 @@ class Node {
 	    : m_loc(loc) {};
 
     public:
-	virtual int accept(Visitor &visitor) {throw "fail";};
+	virtual int accept(Visitor &visitor) { throw "fail"; };
 
 	JSLTYPE &loc() { return m_loc; };
 };
@@ -130,22 +162,17 @@ class StmtNode : public Node {
 	typedef std::vector<StmtNode *> Vec;
 };
 
-class DestructuringNode : public Node {
-    protected:
-	DestructuringNode(JSLTYPE loc)
-	    : Node(loc) {};
-};
-
 /*
  * Abstract superclass of all nodes introducing a context in which variables may
  * be lexically scoped, and within which statements may partake thereof.
  */
-class ScopeNode : public StmtNode {
+class ScopeNode : public StmtNode, public DeclEnv {
     protected:
 	StmtNode::Vec *m_stmts;
 
-	ScopeNode(JSLTYPE loc, StmtNode::Vec *stmts)
+	ScopeNode(JSLTYPE loc, DeclEnv::Type type, StmtNode::Vec *stmts)
 	    : StmtNode(loc)
+	    , DeclEnv(type)
 	    , m_stmts(stmts) {};
 };
 
@@ -155,6 +182,45 @@ class ExprNode : public Node {
 	    : Node(loc) {};
 
     public:
+	typedef std::vector<ExprNode *> Vec;
+};
+
+class DestructuringNode : public Node {
+    protected:
+	DestructuringNode(JSLTYPE loc)
+	    : Node(loc) {};
+};
+
+class SingleDeclNode : public StmtNode {
+	DestructuringNode *m_lhs;
+	ExprNode *m_rhs;
+
+    public:
+	typedef std::vector<SingleDeclNode *> Vec;
+
+	SingleDeclNode(DestructuringNode *lhs, ExprNode *rhs = NULL)
+	    : StmtNode(loc_from(lhs->loc(), rhs->loc()))
+	    , m_lhs(lhs)
+	    , m_rhs(rhs) {};
+
+	int accept(Visitor &visitor);
+};
+
+class DeclNode : public StmtNode {
+    public:
+	enum Type { kConst, kLet, kVar };
+
+    protected:
+	Type m_type;
+	SingleDeclNode::Vec *m_decls;
+
+    public:
+	DeclNode(JSLTYPE loc, Type type, SingleDeclNode::Vec *decls)
+	    : StmtNode(loc)
+	    , m_type(type)
+	    , m_decls(decls) {};
+
+	int accept(Visitor &visitor);
 };
 
 class ThisNode : public ExprNode {
@@ -174,7 +240,9 @@ class IdentifierNode : public ExprNode {
 	    : ExprNode(loc)
 	    , m_value(value) {};
 
-	int accept(Visitor &visitor) { throw "unimplemented"; }
+	int accept(Visitor &visitor);
+
+	const char *value() const { return m_value; }
 };
 
 class NullNode : public ExprNode {
@@ -206,7 +274,7 @@ class NumberNode : public ExprNode {
 	    : ExprNode(loc)
 	    , m_value(value) {};
 
-	int accept(Visitor &visitor) { throw "unimplemented"; }
+	int accept(Visitor &visitor);
 };
 
 class StringNode : public ExprNode {
@@ -274,10 +342,10 @@ class FunCallNode : public ExprNode {
 	    , m_fun(fun)
 	    , m_args(args) {};
 
-	int accept(Visitor &visitor) { throw "unimplemented"; }
+	int accept(Visitor &visitor);
 };
 
-class FunctionExprNode : public ExprNode {
+class FunctionExprNode : public ExprNode, public DeclEnv {
     protected:
 	std::string m_name;
 	std::vector<DestructuringNode *> *m_formals;
@@ -288,11 +356,12 @@ class FunctionExprNode : public ExprNode {
 	    std::vector<DestructuringNode *> *formals,
 	    std::vector<StmtNode *> *body)
 	    : ExprNode(loc)
+	    , DeclEnv(DeclEnv::kFunction)
 	    , m_name(name)
 	    , m_formals(formals)
 	    , m_body(body) {};
 
-	int accept(Visitor &visitor) { throw "unimplemented"; }
+	int accept(Visitor &visitor);
 };
 
 class UnaryOpNode : public ExprNode {
@@ -323,7 +392,7 @@ class BinOpNode : public ExprNode {
 	    , m_rhs(rhs)
 	    , m_op(op) {};
 
-	int accept(Visitor &visitor) { throw "unimplemented"; }
+	int accept(Visitor &visitor);
 };
 
 class AssignNode : public ExprNode {
@@ -383,7 +452,7 @@ class SpreadNode : public ExprNode {
 class BlockNode : public ScopeNode {
     public:
 	BlockNode(JSLTYPE loc, StmtNode::Vec *stmts)
-	    : ScopeNode(loc, stmts) {};
+	    : ScopeNode(loc, DeclEnv::kBlock, stmts) {};
 
 	int accept(Visitor &visitor) { throw "unimplemented"; }
 };
@@ -397,7 +466,7 @@ class ExprStmtNode : public StmtNode {
 	    : StmtNode(expr->loc())
 	    , m_expr(expr) {};
 
-	int accept(Visitor &visitor) { throw "unimplemented"; }
+	int accept(Visitor &visitor);
 };
 
 class IfNode : public StmtNode {
@@ -573,10 +642,11 @@ class CoverParenthesisedExprAndArrowParameterListNode : public Node {
 };
 
 class SingleNameDestructuringNode : public DestructuringNode {
-	ExprNode *m_ident, *m_initialiser;
+	IdentifierNode *m_ident;
+	ExprNode *m_initialiser;
 
     public:
-	SingleNameDestructuringNode(ExprNode *ident,
+	SingleNameDestructuringNode(IdentifierNode *ident,
 	    ExprNode *initialiser = NULL)
 	    : DestructuringNode(initialiser ?
 			    loc_from(ident->loc(), initialiser->loc()) :
@@ -584,41 +654,45 @@ class SingleNameDestructuringNode : public DestructuringNode {
 	    , m_ident(ident)
 	    , m_initialiser(initialiser) {};
 
-	int accept(Visitor &visitor) { throw "unimplemented"; }
+	int accept(Visitor &visitor);
 };
 
 class ScriptNode : public ScopeNode {
     public:
 	ScriptNode(JSLTYPE loc, StmtNode::Vec *stmts)
-	    : ScopeNode(loc, stmts) {};
+	    : ScopeNode(loc, DeclEnv::kGlobal, stmts) {};
 
 	int accept(Visitor &visitor);
 };
 
 class Visitor {
-	public:
+    public:
 	int visitThis(ThisNode *node);
-	int visitIdentifier(IdentifierNode *node);
+	virtual int visitIdentifier(IdentifierNode *node, const char *ident);
 	int visitNull(NullNode *node);
 	int visitBool(BoolNode *node);
-	int visitNumber(NumberNode *node);
+	virtual int visitNumber(NumberNode *node, double val);
 	int visitString(StringNode *node);
 	int visitArray(ArrayNode *node);
 	int visitObject(ObjectNode *node);
 	int visitAccessor(AccessorNode *node);
 	int visitSuper(SuperNode *node);
 	int visitNew(NewExprNode *node);
-	int visitFunCall(FunCallNode *node);
-	int visitFunExpr(FunctionExprNode *node);
+	virtual int visitFunCall(FunCallNode *node, ExprNode *expr,
+	    ExprNode::Vec *args);
+	virtual int visitFunExpr(FunctionExprNode *node, const char *name,
+	    std::vector<DestructuringNode *> *formals,
+	    std::vector<StmtNode *> *body);
 	int visitUnaryOp(UnaryOpNode *node);
-	int visitBinOp(BinOpNode *node);
+	virtual int visitBinOp(BinOpNode *node, ExprNode *lhs, BinOp::Op op,
+	    ExprNode *rhs);
 	int visitAssign(AssignNode *node);
 	int visitConditional(ConditionalNode *node);
 	int visitComma(CommaNode *node);
 	int visitSpread(SpreadNode *node);
 
 	int visitBlock(BlockNode *node);
-	int visitExprStmt(ExprStmtNode *node);
+	virtual int visitExprStmt(ExprStmtNode *node, ExprNode *expr);
 	int visitIf(IfNode *node);
 	int visitDoWhile(DoWhileNode *node);
 	int visitWhile(WhileNode *node);
@@ -632,9 +706,19 @@ class Visitor {
 	int visitLabelled(LabelledNode *node);
 	int visitThrow(ThrowNode *node);
 
-	int visitSingleNameDestructuring(SingleNameDestructuringNode *node);
+	virtual int
+	visitSingleNameDestructuring(SingleNameDestructuringNode *node,
+	    IdentifierNode *ident, ExprNode *initialiser);
 
-	int visitScript(ScriptNode *node, StmtNode::Vec *stmts);
+	virtual int visitSingleDecl(SingleDeclNode *node,
+	    DestructuringNode *lhs, ExprNode *rhs);
+	virtual int visitDecl(DeclNode *node, DeclNode::Type type,
+	    SingleDeclNode::Vec *&decls);
+
+	virtual int visitScript(ScriptNode *node, StmtNode::Vec *stmts);
 };
+
+#define FOR_EACH(TYPE, ITER, VAR) \
+	for (TYPE::iterator ITER = (VAR).begin(); ITER != (VAR).end(); it++)
 
 #endif /* AST_HH_ */

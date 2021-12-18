@@ -32,6 +32,8 @@ class ExprNode;
 class StmtNode;
 class CoverParenthesisedExprAndArrowParameterListNode;
 class DestructuringNode;
+class SingleDeclNode;
+class DeclNode;
 
 #define ASI printf(" -> ADDING AUTO SC\n");
 
@@ -100,6 +102,7 @@ jslex(JSSTYPE *yylval, JSLTYPE *loc, Driver * driver);
 %precedence ELSE
 
 %union {
+	int intVal;
 	BinOp::Op opVal;
 	char *str;
 
@@ -108,17 +111,21 @@ jslex(JSSTYPE *yylval, JSLTYPE *loc, Driver * driver);
 	CoverParenthesisedExprAndArrowParameterListNode
 	    *coverParenthesisedExprAndArrowParameterListNode;
 	DestructuringNode *destructuringNode;
+	SingleDeclNode *singleDeclNode;
+	DeclNode * declNode;
+	IdentifierNode *identNode;
 
 	std::vector<DestructuringNode*> *destructuringNodeVec;
 	std::vector<StmtNode*> *stmtNodeVec;
 	std::vector<ExprNode*> *exprNodeVec;
+	std::vector<SingleDeclNode*> *singleDeclNodeVec;
 }
 
 %type <str> IDENTIFIER IdentifierNotReserved
 
 %type <exprNode> NULLTOK BOOLLIT STRINGLIT NUMLIT
 
-%type <exprNode> IdentifierReference BindingIdentifier LabelIdentifier
+%type <identNode> IdentifierReference BindingIdentifier LabelIdentifier
 %type <str> BindingIdentifier_Str
 
 %type <exprNode> Initialiser
@@ -178,6 +185,11 @@ jslex(JSSTYPE *yylval, JSLTYPE *loc, Driver * driver);
 
 %type <exprNode> FunctionExpr
 %type <stmtNodeVec> FunctionBody FunctionStmtList
+
+%type <intVal> LetOrConst
+%type <singleDeclNode> LexicalBinding
+%type <singleDeclNodeVec> BindingList
+%type <declNode> LexicalDeclaration
 
 %%
 
@@ -1117,23 +1129,38 @@ StmtListItem:
 	;
 
 LexicalDeclaration:
-	  LetOrConst BindingList ';'
-	| LetOrConst BindingList error { ASI; }
+	  LetOrConst BindingList ';' {
+		$$ = new DeclNode(loc_from(@1, @3), (DeclNode::Type)$1, $2);
+	}
+	| LetOrConst BindingList error {
+		ASI;
+		$$ = new DeclNode(loc_from(@1, @2), (DeclNode::Type)$1, $2);
+	}
 	;
 
 LetOrConst:
-	  LET
-	| CONST
+	  LET { $$ = DeclNode::kLet; }
+	| CONST { $$ = DeclNode::kConst; }
 	;
 
 BindingList:
-	  LexicalBinding
-	| BindingList ',' LexicalBinding
+	  LexicalBinding {
+		$$ = new SingleDeclNode::Vec;
+		$$->push_back($1);
+	}
+	| BindingList ',' LexicalBinding {
+		$$ = $1;
+		$$->push_back($3);
+	}
 	;
 
 LexicalBinding:
-	  BindingIdentifier Initialiser
-	| BindingPattern Initialiser
+	  BindingIdentifier Initialiser {
+		$$ = new SingleDeclNode(new SingleNameDestructuringNode($1, NULL), $2);
+	}
+	| BindingPattern Initialiser {
+		UNIMPLEMENTED;
+	}
 	;
 
 VariableStmt:

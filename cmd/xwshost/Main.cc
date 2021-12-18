@@ -32,6 +32,7 @@ main(int argc, char *arg[])
 	/* And, finally, destroy this scanner. */
 	jslex_destroy(drv.scanner);
 
+	drv.generateBytecode();
 
 	return 0;
 }

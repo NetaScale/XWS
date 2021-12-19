@@ -453,6 +453,7 @@ DestructuringVisitor::visitSingleNameDestructuring(
     ExprNode *initialiser)
 {
 	if (m_destructuring.empty()) {
+#if 0
 		if (initialiser != NULL) {
 			if (kind == kParam)
 				m_gen.m_gens.top()->emit1(VM::kPushArg, m_idx);
@@ -466,6 +467,7 @@ DestructuringVisitor::visitSingleNameDestructuring(
 			printf("POP\n");
 			printf("/* not undefined */\n");
 		}
+#endif
 		if (kind != kParam)
 			m_gen.coder()->emit1(VM::kResolvedStore,
 			    m_gen.coder()->litStr(ident->value()));

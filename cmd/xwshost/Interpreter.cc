@@ -1,10 +1,31 @@
 #include <cassert>
+#include <cmath>
 #include <cstdio>
+#include <math.h>
 
 #include "Bytecode.hh"
 #include "VM.hh"
 
 namespace VM {
+
+bool
+JSValue::JS_ToBoolean()
+{
+	switch (type) {
+	case kUndefined:
+		return false;
+	case kInt32:
+		return i32 != 0;
+	case kString:
+		return strlen(str) != 0;
+	case kDouble: {
+		int cls = fpclassify(dbl);
+		return cls != FP_NAN && cls != FP_ZERO;
+	}
+	case kObject:
+		return true;
+	}
+}
 
 void
 JSValue::print()
@@ -164,8 +185,8 @@ Interpreter::interpret()
 			int16_t offs = (b1 << 8) | b2;
 			JSValue val = pop();
 
-			printf("Taking false path\n");
-			m_pc += offs;
+			if (val.JS_ToBoolean() == false)
+				m_pc += offs;
 			break;
 		}
 

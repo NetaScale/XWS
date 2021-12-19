@@ -183,12 +183,22 @@ class ExprNode : public Node {
 
     public:
 	typedef std::vector<ExprNode *> Vec;
+
+	virtual DestructuringNode *toDestructuringNode() { return NULL; }
 };
 
 class DestructuringNode : public Node {
     protected:
-	DestructuringNode(JSLTYPE loc)
-	    : Node(loc) {};
+	friend class AssignNode;
+
+	ExprNode *m_initialiser;
+
+	DestructuringNode(JSLTYPE loc, ExprNode *initialiser)
+	    : Node(loc)
+	    , m_initialiser(initialiser) {};
+
+    public:
+	typedef std::vector<DestructuringNode *> Vec;
 };
 
 class SingleDeclNode : public StmtNode {
@@ -239,6 +249,8 @@ class IdentifierNode : public ExprNode {
 	IdentifierNode(JSLTYPE loc, char *value)
 	    : ExprNode(loc)
 	    , m_value(value) {};
+
+	DestructuringNode *toDestructuringNode();
 
 	int accept(Visitor &visitor);
 
@@ -357,7 +369,7 @@ class FunctionExprNode : public ExprNode, public DeclEnv {
 	    std::vector<StmtNode *> *body)
 	    : ExprNode(loc)
 	    , DeclEnv(DeclEnv::kFunction)
-	    , m_name(name)
+	    , m_name(name == NULL ? "" : name)
 	    , m_formals(formals)
 	    , m_body(body) {};
 
@@ -407,6 +419,8 @@ class AssignNode : public ExprNode {
 	    , m_rhs(rhs)
 	    , m_op(op) {};
 
+	DestructuringNode *toDestructuringNode();
+
 	int accept(Visitor &visitor) { throw "unimplemented"; }
 };
 
@@ -433,6 +447,9 @@ class CommaNode : public ExprNode {
 	    : ExprNode(loc_from(prev->loc(), expr->loc()))
 	    , m_prev(prev)
 	    , m_expr(expr) {};
+
+	DestructuringNode::Vec *toDestructuringVec(
+	    std::vector<DestructuringNode *> *vec = NULL);
 
 	int accept(Visitor &visitor) { throw "unimplemented"; }
 };
@@ -638,21 +655,25 @@ class CoverParenthesisedExprAndArrowParameterListNode : public Node {
 	 */
 	ExprNode *toExpr();
 
+	/**
+	 * Convert to a vector of destructuring nodes if possible. Returns NULL
+	 * if this cannot be done. */
+	std::vector<DestructuringNode *> *toDestructuringVec();
+
 	int accept(Visitor &visitor) { throw "Unreachable"; }
 };
 
 class SingleNameDestructuringNode : public DestructuringNode {
 	IdentifierNode *m_ident;
-	ExprNode *m_initialiser;
 
     public:
 	SingleNameDestructuringNode(IdentifierNode *ident,
 	    ExprNode *initialiser = NULL)
 	    : DestructuringNode(initialiser ?
 			    loc_from(ident->loc(), initialiser->loc()) :
-			    ident->loc())
-	    , m_ident(ident)
-	    , m_initialiser(initialiser) {};
+			    ident->loc(),
+		  initialiser)
+	    , m_ident(ident) {};
 
 	int accept(Visitor &visitor);
 };

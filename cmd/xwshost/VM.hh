@@ -41,7 +41,9 @@ struct JSValue {
 	    : type(kObject)
 	    , obj(val) {};
 
-	    void print() ;
+	bool JS_ToBoolean();
+
+	void print();
 };
 
 class JSObject {

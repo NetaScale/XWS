@@ -1,4 +1,9 @@
+#include <cstdio>
+#include <iostream>
+#include <typeinfo>
+
 #include "AST.hh"
+#include "Parser.tab.hh"
 
 void
 DeclEnv::defineArg(const char *name, unsigned int idx)
@@ -237,6 +242,20 @@ ScriptNode::accept(Visitor &visitor)
 	return visitor.visitScript(this, m_stmts);
 }
 
+DestructuringNode *
+IdentifierNode::toDestructuringNode()
+{
+	return new SingleNameDestructuringNode(this, NULL);
+}
+
+DestructuringNode *
+AssignNode::toDestructuringNode()
+{
+	DestructuringNode *node = m_lhs->toDestructuringNode();
+	node->m_initialiser = m_rhs;
+	return node;
+}
+
 ExprNode *
 CoverParenthesisedExprAndArrowParameterListNode::toExpr()
 {
@@ -244,4 +263,52 @@ CoverParenthesisedExprAndArrowParameterListNode::toExpr()
 		return NULL;
 	else
 		return m_expr;
+}
+
+std::vector<DestructuringNode *> *
+CommaNode::toDestructuringVec(std::vector<DestructuringNode *> *vec)
+{
+	CommaNode *prev;
+	DestructuringNode *node;
+
+	node = m_expr->toDestructuringNode();
+	if (!node) {
+		std::cout << "FAILED TO TURN NODE " << typeid(*m_expr).name()
+			  << "into destructuring\n";
+		return NULL;
+	}
+	vec->push_back(node);
+
+	prev = dynamic_cast<CommaNode *>(m_prev);
+	if (prev)
+		prev->toDestructuringVec(vec);
+	else {
+		node = m_prev->toDestructuringNode();
+		if (!node) {
+			std::cout << "FAILED TO TURN NODE "
+				  << typeid(*m_prev).name()
+				  << "into destructuring\n";
+			return NULL;
+		}
+		vec->push_back(node);
+	}
+
+	return vec;
+}
+
+std::vector<DestructuringNode *> *
+CoverParenthesisedExprAndArrowParameterListNode::toDestructuringVec()
+{
+	std::vector<DestructuringNode *> *vec =
+	    new std::vector<DestructuringNode *>;
+	CommaNode *comma;
+
+	if ((comma = dynamic_cast<CommaNode *>(m_expr))) {
+		vec = comma->toDestructuringVec(vec);
+	} else {
+		DestructuringNode *node = m_expr->toDestructuringNode();
+		vec->push_back(node);
+	}
+
+	return vec;
 }

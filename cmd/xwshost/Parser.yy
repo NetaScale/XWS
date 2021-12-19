@@ -135,8 +135,12 @@ jslex(JSSTYPE *yylval, JSLTYPE *loc, Driver * driver);
 %type <exprNode> PrimaryExpr PrimaryExpr_NoBrace
 %type <exprNode> Literal
 
+%type <exprNode> ArrowFunction
+%type <destructuringNodeVec> ArrowParameters
 %type <coverParenthesisedExprAndArrowParameterListNode>
     CoverParenthesisedExprAndArrowParameterList
+%type <stmtNode> ExpressionBody
+%type <stmtNodeVec> ConciseBody
 
 %type <exprNode> MemberExpr MemberExpr_NoBrace
 %type <exprNode> SuperProperty SuperCall
@@ -1544,20 +1548,38 @@ FunctionStmtList:
 	;
 
 ArrowFunction:
-	  ArrowParameters /* [no LineTerminator here] */ FARROW ConciseBody
+	  ArrowParameters /* [no LineTerminator here] */ FARROW ConciseBody {
+		$$ = new FunctionExprNode(loc_from(@1, @3), NULL, $1, $3);
+	}
 	;
 
 ArrowParameters:
-	  BindingIdentifier
-	| CoverParenthesisedExprAndArrowParameterList
+	  BindingIdentifier {
+		$$ = new std::vector<DestructuringNode *>;
+		$$->push_back(new SingleNameDestructuringNode($1));
+	}
+	| CoverParenthesisedExprAndArrowParameterList {
+		$$ = $1->toDestructuringVec();
+		if (!$$)
+		{
+			yyerror(&@1, driver, "Syntax error: "
+			"Invalid arrow function parameters");
+			YYERROR;
+		}
+	}
 	;
 
 ConciseBody:
-	  ExpressionBody
+	  ExpressionBody {
+		$$ = new StmtNode::Vec;
+		$$->push_back($1);
+	}
 	;
 
 ExpressionBody:
-	  AssignmentExpr_NoBrace
+	  AssignmentExpr_NoBrace {
+		$$ = new ReturnNode($1);
+	}
 	;
 
 /*

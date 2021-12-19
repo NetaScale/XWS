@@ -41,7 +41,7 @@ class ContinueNode;
 class BreakNode;
 class ReturnNode;
 class WithNode;
-class LabelledNode;
+class LabelNode;
 class ThrowNode;
 
 class SingleNameDestructuringNode;
@@ -482,7 +482,7 @@ class IfNode : public StmtNode {
 	    , m_if(ifBlock)
 	    , m_else(elseBlock) {};
 
-	int accept(Visitor &visitor) { throw "unimplemented"; }
+	int accept(Visitor &visitor);
 };
 
 class DoWhileNode : public StmtNode {
@@ -536,26 +536,26 @@ class ForOfNode : public StmtNode {
 
 class ContinueNode : public StmtNode {
     protected:
-	ExprNode *m_label;
+	IdentifierNode *m_label;
 
     public:
-	ContinueNode(ExprNode *label)
-	    : StmtNode(label->loc())
+	ContinueNode(JSLTYPE loc, IdentifierNode *label = NULL)
+	    : StmtNode(loc)
 	    , m_label(label) {};
 
-	int accept(Visitor &visitor) { throw "unimplemented"; }
+	int accept(Visitor &visitor);
 };
 
 class BreakNode : public StmtNode {
     protected:
-	ExprNode *m_label;
+	IdentifierNode *m_label;
 
     public:
-	BreakNode(ExprNode *label)
-	    : StmtNode(label->loc())
+	BreakNode(JSLTYPE loc, IdentifierNode *label = NULL)
+	    : StmtNode(loc)
 	    , m_label(label) {};
 
-	int accept(Visitor &visitor) { throw "unimplemented"; }
+	int accept(Visitor &visitor);
 };
 
 class ReturnNode : public StmtNode {
@@ -584,18 +584,18 @@ class WithNode : public StmtNode {
 	int accept(Visitor &visitor) { throw "unimplemented"; }
 };
 
-class LabelledNode : public StmtNode {
+class LabelNode : public StmtNode {
     protected:
-	std::string m_label;
+	IdentifierNode *m_label;
 	StmtNode *m_stmt;
 
     public:
-	LabelledNode(char *label, StmtNode *stmt)
+	LabelNode(IdentifierNode *label, StmtNode *stmt)
 	    : StmtNode(stmt->loc())
 	    , m_label(label)
 	    , m_stmt(stmt) {};
 
-	int accept(Visitor &visitor) { throw "unimplemented"; }
+	int accept(Visitor &visitor);
 };
 
 class ThrowNode : public StmtNode {
@@ -693,17 +693,19 @@ class Visitor {
 
 	int visitBlock(BlockNode *node);
 	virtual int visitExprStmt(ExprStmtNode *node, ExprNode *expr);
-	int visitIf(IfNode *node);
+	virtual int visitIf(IfNode *node, ExprNode *cond, StmtNode *ifCode,
+	    StmtNode *elseCode);
 	int visitDoWhile(DoWhileNode *node);
 	int visitWhile(WhileNode *node);
 	int visitFor(ForNode *node);
 	int visitForIn(ForInNode *node);
 	int visitForOf(ForOfNode *node);
-	int visitContinue(ContinueNode *node);
-	int visitBreak(BreakNode *node);
+	virtual int visitContinue(ContinueNode *node, IdentifierNode *label);
+	virtual int visitBreak(BreakNode *node, IdentifierNode *label);
 	virtual int visitReturn(ReturnNode *node, ExprNode * expr);
 	int visitWith(WithNode *node);
-	int visitLabelled(LabelledNode *node);
+	virtual int visitLabel(LabelNode *node, IdentifierNode *label,
+	    StmtNode *stmt);
 	int visitThrow(ThrowNode *node);
 
 	virtual int

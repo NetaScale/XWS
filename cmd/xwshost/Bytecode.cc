@@ -8,9 +8,23 @@ namespace VM {
 void
 BytecodeEncoder::emit0(Op op)
 {
-	//printf("EMIT INTO FUNC %p\n", m_fun);
 	m_fun->m_bytecode.push_back(op);
 	printf("\t%s;\n", opName(op));
+}
+
+void
+BytecodeEncoder::emit1i16(Op op, int16_t arg1)
+{
+	uint8_t bytes[2];
+
+	bytes[0] = ((arg1 & 0xFF00) >> 8);
+	bytes[1] = (arg1 & 0x00FF);
+
+	m_fun->m_bytecode.push_back(op);
+	m_fun->m_bytecode.push_back(bytes[0]);
+	m_fun->m_bytecode.push_back(bytes[1]);
+
+	printf("\t%s (%d);\n", opName(op), arg1);
 }
 
 void
@@ -51,6 +65,116 @@ BytecodeEncoder::litObj(JSObject * obj)
 	return m_fun->m_literals.size() - 1;
 }
 
+void
+BytecodeEncoder::replaceJumpTarget(size_t pos, size_t newTarget)
+{
+	uint8_t bytes[2];
+	int16_t relative = newTarget - pos;
+
+	printf("AMEND TARGET TO %d\n", relative);
+	bytes[0] = ((relative & 0xff00) >> 8);
+	bytes[1] = (relative & 0x00FF);
+
+	m_fun->m_bytecode[pos - 1] = bytes[1];
+	m_fun->m_bytecode[pos - 2] = bytes[0];
+}
+
+size_t
+BytecodeEncoder::pos()
+{
+	return m_fun->m_bytecode.size();
+}
+
+void
+JSFunction::disassemble()
+{
+	int pc = 0;
+	int end = m_bytecode.size();
+
+	printf("DISASSEMBLY:\n");
+
+	while (pc < end) {
+#define FETCH m_bytecode[pc++]
+		char op = FETCH;
+
+		printf(" %d\t", pc - 1);
+		switch (op) {
+		case kPushArg: {
+			uint8_t idx = FETCH;
+			printf("PushArg (%d)\n", idx);
+			break;
+		}
+
+		case kPushUndefined: {
+			printf("PushUndefined\n");
+			break;
+		}
+
+		case kPushLiteral: {
+			uint8_t idx = FETCH;
+			printf("PushLiteral (%d)\n", idx);
+			break;
+		}
+
+		case kResolve: {
+			uint8_t idx = FETCH;
+			JSValue val = m_literals[idx];
+			printf("Resolve (%d)\n", idx);
+			break;
+		}
+
+		case kResolvedStore: {
+			uint8_t idx = FETCH;
+			JSValue id = m_literals[idx];
+			printf("ResolvedStore (%d)\n", idx);
+
+			break;
+		}
+
+		case kPop: {
+			printf("Pop\n");
+			break;
+		}
+
+		case kAdd: {
+			printf("Add\n");
+
+			break;
+		}
+
+		case kJump: {
+			uint8_t b1 = FETCH;
+			uint8_t b2 = FETCH;
+			int16_t offs = (b1 << 8) | b2;
+			printf("Jump (%d)\n", pc + offs);
+			break;
+		}
+
+		case kJumpIfFalse: {
+			uint8_t b1 = FETCH;
+			uint8_t b2 = FETCH;
+			int16_t offs = (b1 << 8) | b2;
+			printf("JumpIfFalse (%d)\n", pc + offs);
+			break;
+		}
+
+		case kCall: {
+			printf("Call\n");
+			break;
+		}
+
+		case kCreateClosure: {
+			printf("CreateClosure\n");
+			break;
+		}
+
+		case kReturn:
+			printf("Return\n");
+			break;
+		}
+	}
+}
+
 const char *
 opName(Op op)
 {
@@ -75,6 +199,12 @@ opName(Op op)
 
 	case kAdd:
 		return "Add";
+
+	case kJump:
+		return "Jump";
+
+	case kJumpIfFalse:
+		return "JumpIfFalse";
 
 	case kCall:
 		return "Call";

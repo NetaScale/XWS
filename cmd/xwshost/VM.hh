@@ -62,6 +62,7 @@ class JSFunction : public JSObject, public ScopeMap {
 	std::vector<char> m_bytecode;
 	std::vector<JSValue> m_literals;
 
+	void disassemble(); /* bytecode.cc */
 	void print() { printf("func"); }
 };
 
@@ -91,8 +92,7 @@ class JSClosure : public JSObject {
 	{
 	}
 
-		void print() { printf("closure"); }
-
+	void print() { printf("closure"); }
 };
 
 class Interpreter {

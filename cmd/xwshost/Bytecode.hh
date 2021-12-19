@@ -1,6 +1,8 @@
 #ifndef BYTECODE_HH_
 #define BYTECODE_HH_
 
+#include <cstddef>
+#include <stdint.h>
 #include <vector>
 
 namespace VM {
@@ -10,7 +12,7 @@ class JSObject;
 class JSFunction;
 
 enum Op {
-	kPushArg,	/* u8 argIdx */
+	kPushArg, /* u8 argIdx */
 	kPushUndefined,
 	kPushLiteral,	/* (u8 lit num) */
 	kResolve,	/* (u8 lit str) */
@@ -20,14 +22,15 @@ enum Op {
 
 	kAdd,
 
+	kJump,	      /* u16 pc-offset */
+	kJumpIfFalse, /* u16 pc-offset */
+
 	kCall, /* u8 numArgs */
 	kCreateClosure,
 	kReturn,
 };
 
 class BytecodeEncoder {
-	//std::vector<char> &m_output;
-	//std::vector<JSValue> & m_litOutput;
 	JSFunction * m_fun;
 
     public:
@@ -35,12 +38,17 @@ class BytecodeEncoder {
 	    : m_fun(fun) {};
 
 	void emit0(Op op);
+	void emit1i16(Op op, int16_t arg1);
 	void emit1(Op op, char arg1);
 	void emit2(Op op, char arg1, char arg2);
 
 	char litNum(double num);
 	char litStr(const char * txt);
 	char litObj(JSObject * obj);
+
+	void replaceJumpTarget(size_t pos, size_t newTarget);
+
+	size_t pos();
 };
 
 const char * opName(Op op);

@@ -150,6 +150,25 @@ Interpreter::interpret()
 			break;
 		}
 
+		case kJump: {
+			uint8_t b1 = FETCH;
+			uint8_t b2 = FETCH;
+			int16_t offs = (b1 << 8) | b2;
+			m_pc += offs;
+			break;
+		}
+
+		case kJumpIfFalse: {
+			uint8_t b1 = FETCH;
+			uint8_t b2 = FETCH;
+			int16_t offs = (b1 << 8) | b2;
+			JSValue val = pop();
+
+			printf("Taking false path\n");
+			m_pc += offs;
+			break;
+		}
+
 		case kAdd: {
 			JSValue a = pop();
 			JSValue b = pop();

@@ -1388,13 +1388,21 @@ ForBinding[Yield, Await] :
 */
 
 ContinueStmt:
-	  CONTINUE ';'
-	| CONTINUE /* [no LineTerminator here] */ LabelIdentifier ';'
+	  CONTINUE ';' {
+		$$ = new ContinueNode(loc_from(@1, @2));
+	}
+	| CONTINUE /* [no LineTerminator here] */ LabelIdentifier ';' {
+		$$ = new ContinueNode(loc_from(@1, @3), $2);
+	}
 	;
 
 BreakStmt:
-	  BREAK ';'
-	| BREAK /* [no LineTerminator here] */ LabelIdentifier ';'
+	  BREAK ';' {
+		$$ = new BreakNode(loc_from(@1, @2));
+	}
+	| BREAK /* [no LineTerminator here] */ LabelIdentifier ';' {
+		$$ = new BreakNode(loc_from(@1, @3), $2);
+	}
 	;
 
 ReturnStmt:
@@ -1431,8 +1439,7 @@ default : StmtList[?Yield, ?Await, ?Return]opt
 
 LabelledStmt:
 	LabelIdentifier ':' LabelledItem {
-		//$$ = new LabelNode($1, $3);
-		UNIMPLEMENTED;
+		$$ = new LabelNode($1, $3);
 	}
 	;
 

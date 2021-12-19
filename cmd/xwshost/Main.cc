@@ -16,9 +16,10 @@
 int
 main(int argc, char *arg[])
 {
-	std::string tst("const y = 40;\n"
+	/*std::string tst("const y = 40;\n"
 			"const fn = function fn(a, b) { return a + b + y; }\n"
-			"return fn(1, 2);");
+			"return fn(1, 2);");*/
+	std::string tst("label: if (1) break label; else return 50;");
 	Driver drv;
 	YY_BUFFER_STATE yybuf;
 

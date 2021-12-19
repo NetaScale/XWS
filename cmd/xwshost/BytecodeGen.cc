@@ -43,10 +43,32 @@ class BytecodeGenerator : public Visitor {
 	std::stack<VM::BytecodeEncoder *> m_gens;
 	VM::JSFunction *m_script;
 
+	struct LabelDescriptor {
+		const char *m_ident;
+		StmtNode *m_stmt;
+		size_t begin;
+		size_t end;
+		/** Jump instructions created by breaks to set offset to end. */
+		std::vector<size_t> m_breaks;
+	};
+
+	/**
+	 * Stack of labels. Later we will also push sentinels to indicate we
+	 * need to pop a block scope; when we reverse iterate over the stack to
+	 * find the label to jump to, we can count those sentinels.
+	 */
+	std::vector<LabelDescriptor *> m_labelDescs;
+	/** Labels to be bound to the next statement */
+	std::vector<IdentifierNode *> m_nextStmtLabels;
+
 	inline VM::BytecodeEncoder *coder() { return m_gens.top(); }
 
 	VM::JSFunction *enterNewFunction();
 	VM::JSFunction *exitFunction(DeclEnv *env);
+
+	/** Sets up label stack for a statement. */
+	void enterStmt(StmtNode *stmt, size_t beginPos);
+	void exitStmt(StmtNode *stmt, size_t endPos);
 
 	void emitSingleNameDestructuring(const char *txt,
 	    ExprNode *ifUndefined);
@@ -62,7 +84,12 @@ class BytecodeGenerator : public Visitor {
 	    ExprNode *rhs);
 
 	int visitExprStmt(ExprStmtNode *node, ExprNode *expr);
+	int visitIf(IfNode *node, ExprNode *cond, StmtNode *ifCode,
+	    StmtNode *elseCode);
+	// int visitContinue(BreakNode *node, IdentifierNode *label);
+	int visitBreak(BreakNode *node, IdentifierNode *label);
 	int visitReturn(ReturnNode *node, ExprNode *expr);
+	int visitLabel(LabelNode *node, IdentifierNode *label, StmtNode *stmt);
 
 	int visitSingleDecl(SingleDeclNode *node, DestructuringNode *lhs,
 	    ExprNode *rhs);
@@ -238,6 +265,43 @@ BytecodeGenerator::exitFunction(DeclEnv *env)
 	return jsf;
 }
 
+void
+BytecodeGenerator::enterStmt(StmtNode *stmt, size_t beginPos)
+{
+	LabelDescriptor *desc = NULL;
+
+	while (!m_nextStmtLabels.empty()) {
+		IdentifierNode *id = m_nextStmtLabels.back();
+
+		m_nextStmtLabels.pop_back();
+
+		if (!desc) {
+			desc = new LabelDescriptor;
+			desc->m_stmt = stmt;
+			desc->m_ident = id->value();
+			desc->begin = beginPos;
+		}
+
+		m_labelDescs.push_back(desc);
+	}
+}
+
+void
+BytecodeGenerator::exitStmt(StmtNode *stmt, size_t emdPos)
+{
+	while (!m_labelDescs.empty() && m_labelDescs.back()->m_stmt == stmt) {
+		LabelDescriptor *desc = m_labelDescs.back();
+		m_labelDescs.pop_back();
+		printf("May rewrite label <%s>\n", desc->m_ident);
+		for (std::vector<size_t>::iterator it = desc->m_breaks.begin();
+		     it != desc->m_breaks.end(); it++) {
+			/* patch break statements to the end of the statement */
+			coder()->replaceJumpTarget(*it, emdPos);
+		}
+		delete desc;
+	}
+}
+
 int
 BytecodeGenerator::visitIdentifier(IdentifierNode *node, const char *ident)
 {
@@ -313,10 +377,73 @@ BytecodeGenerator::visitExprStmt(ExprStmtNode *node, ExprNode *expr)
 }
 
 int
+BytecodeGenerator::visitIf(IfNode *node, ExprNode *cond, StmtNode *ifCode,
+    StmtNode *elseCode)
+{
+	size_t jumpPastIfCode, jumpPastElseCode;
+
+	enterStmt(node, coder()->pos());
+
+	cond->accept(*this);
+	coder()->emit1i16(VM::kJumpIfFalse, 0);
+	jumpPastIfCode = coder()->pos();
+	ifCode->accept(*this);
+
+	if (elseCode) {
+		/* EMIT UNCONDITIONAL JUMP */
+		coder()->emit1i16(VM::kJump, 0);
+		jumpPastElseCode = coder()->pos();
+	}
+
+	coder()->replaceJumpTarget(jumpPastIfCode, coder()->pos());
+
+	if (elseCode) {
+		elseCode->accept(*this);
+		coder()->replaceJumpTarget(jumpPastElseCode, coder()->pos());
+	}
+
+	exitStmt(node, coder()->pos());
+
+	return 0;
+}
+
+int
+BytecodeGenerator::visitBreak(BreakNode *node, IdentifierNode *label)
+{
+	int nScopesToPop = 0;
+
+	for (std::vector<LabelDescriptor *>::reverse_iterator it =
+		 m_labelDescs.rbegin();
+	     it != m_labelDescs.rend(); it++) {
+		if ((*it)->m_stmt == 0) {
+			/* null statement is a block scope sentinel */
+			nScopesToPop++;
+		} else if (!label || !strcmp((*it)->m_ident, label->value())) {
+
+			coder()->emit1i16(VM::kJump, 0);
+			(*it)->m_breaks.push_back(coder()->pos());
+			return 0;
+		}
+	}
+
+	printf("Syntax error: undefined label <%s>", label->value());
+	throw "error";
+}
+
+int
 BytecodeGenerator::visitReturn(ReturnNode *node, ExprNode *expr)
 {
 	expr->accept(*this);
 	m_gens.top()->emit0(VM::kReturn);
+	return 0;
+}
+
+int
+BytecodeGenerator::visitLabel(LabelNode *node, IdentifierNode *label,
+    StmtNode *stmt)
+{
+	m_nextStmtLabels.push_back(label);
+	stmt->accept(*this);
 	return 0;
 }
 
@@ -379,6 +506,7 @@ BytecodeGenerator::visitScript(ScriptNode *node, StmtNode::Vec *stmts)
 	     it++)
 		(*it)->accept(*this);
 	m_script = exitFunction(node);
+	m_script->disassemble();
 	return 0;
 }
 

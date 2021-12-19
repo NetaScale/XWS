@@ -101,6 +101,80 @@ ExprStmtNode::accept(Visitor &visitor)
 	return visitor.visitExprStmt(this, m_expr);
 }
 
+/** If statements */
+int
+Visitor::visitIf(IfNode *node, ExprNode *cond, StmtNode *ifCode,
+    StmtNode *elseCode)
+{
+	cond->accept(*this);
+	ifCode->accept(*this);
+	if (elseCode)
+		elseCode->accept(*this);
+	return 0;
+}
+
+int
+IfNode::accept(Visitor &visitor)
+{
+	return visitor.visitIf(this, m_cond, m_if, m_else);
+}
+
+/** Labelled statements */
+int
+Visitor::visitLabel(LabelNode *node, IdentifierNode *label, StmtNode *stmt)
+{
+	stmt->accept(*this);
+	return 0;
+}
+
+int
+LabelNode::accept(Visitor &visitor)
+{
+	return visitor.visitLabel(this, m_label, m_stmt);
+}
+
+int
+Visitor::visitContinue(ContinueNode *node, IdentifierNode *label)
+{
+	return 0;
+}
+
+int
+ContinueNode::accept(Visitor &visitor)
+{
+	return visitor.visitContinue(this, m_label);
+}
+
+int
+Visitor::visitBreak(BreakNode *node, IdentifierNode *label)
+{
+	return 0;
+}
+
+int
+BreakNode::accept(Visitor &visitor)
+{
+	return visitor.visitBreak(this, m_label);
+}
+
+/** Return Statements */
+int
+ReturnNode::accept(Visitor &visitor)
+{
+	return visitor.visitReturn(this, m_expr);
+}
+
+int
+Visitor::visitReturn(ReturnNode *node, ExprNode *expr)
+{
+	expr->accept(*this);
+	return 0;
+}
+
+/*
+ * Declarations
+ */
+
 int
 Visitor::visitSingleDecl(SingleDeclNode *node, DestructuringNode *lhs,
     ExprNode *rhs)
@@ -138,19 +212,6 @@ Visitor::visitSingleNameDestructuring(SingleNameDestructuringNode *node,
 {
 	ident->accept(*this);
 	initialiser->accept(*this);
-	return 0;
-}
-
-int
-ReturnNode::accept(Visitor &visitor)
-{
-	return visitor.visitReturn(this, m_expr);
-}
-
-int
-Visitor::visitReturn(ReturnNode *node,  ExprNode *expr)
-{
-	expr->accept(*this);
 	return 0;
 }
 

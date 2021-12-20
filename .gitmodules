@@ -1,3 +1,6 @@
 [submodule "vendor/byacc"]
 	path = vendor/byacc
 	url = ../byacc
+[submodule "lib/mps"]
+	path = lib/mps
+	url = ../mps

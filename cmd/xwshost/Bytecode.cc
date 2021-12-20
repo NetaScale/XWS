@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cstdlib>
 
 #include "Bytecode.hh"
 #include "VM.hh"
@@ -214,6 +215,10 @@ opName(Op op)
 
 	case kReturn:
 		return "Return";
+
+	default:
+		abort();
 	}
 }
-};
+
+}; /* namespace VM */

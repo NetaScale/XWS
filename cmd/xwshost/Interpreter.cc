@@ -1,12 +1,17 @@
 #include <cassert>
 #include <cmath>
 #include <cstdio>
+#include <limits>
 #include <math.h>
+#include <stdint.h>
 
 #include "Bytecode.hh"
 #include "VM.hh"
 
 namespace VM {
+
+static const int gSmiMax = INT32_MAX / 2, gSmiMin = INT32_MIN / 2;
+static const double gEpsilon = std::numeric_limits<double>::epsilon();
 
 bool
 JSValue::JS_ToBoolean()
@@ -122,6 +127,11 @@ Interpreter::Interpreter(JSClosure *closure)
 	m_env = new Environment(closure->m_func);
 }
 
+#define ISINT32(x) a.type == JSValue::kInt32
+#define ISDOUBLE(x) a.type == JSValue::kDouble
+
+#define DBLEQ(a, b) (fabs(a.dbl - b.dbl) < gEpsilon)
+
 void
 Interpreter::interpret()
 {
@@ -194,12 +204,87 @@ Interpreter::interpret()
 			JSValue a = pop();
 			JSValue b = pop();
 
-			assert(a.type == JSValue::kDouble);
-			assert(b.type == JSValue::kDouble);
+			if (ISINT32(a) && ISINT32(b)) {
+				int64_t res = a.i32 + b.i32;
+				if (res <= gSmiMin || res >= gSmiMax)
+					m_stack.push((double)res);
+				else
+					m_stack.push((int32_t)res);
+			} else if (ISDOUBLE(a) && ISDOUBLE(b))
+				m_stack.push(a.dbl + b.dbl);
+			else
+				abort();
 
-			m_stack.push(JSValue(a.dbl + b.dbl));
 			break;
-		}
+		};
+
+		case kSub: {
+			JSValue a = pop();
+			JSValue b = pop();
+			if (ISINT32(a) && ISINT32(b)) {
+				int64_t res = a.i32 - b.i32;
+				if (res <= gSmiMin || res >= gSmiMax)
+					m_stack.push((double)res);
+				else
+					m_stack.push((int32_t)res);
+			} else if (ISDOUBLE(a) && ISDOUBLE(b))
+				m_stack.push(a.dbl - b.dbl);
+			else
+				abort();
+			break;
+		};
+
+		case kMul: {
+			JSValue a = pop();
+			JSValue b = pop();
+
+			if (ISINT32(a) && ISINT32(b)) {
+				int64_t res = a.i32 * b.i32;
+				if (res <= gSmiMin || res >= gSmiMax)
+					m_stack.push((double)res);
+				else
+					m_stack.push((int32_t)res);
+			} else if (ISDOUBLE(a) && ISDOUBLE(b))
+				m_stack.push(a.dbl * b.dbl);
+			else
+				abort();
+			break;
+		};
+
+		case kDiv: {
+			JSValue a = pop();
+			JSValue b = pop();
+			if (ISINT32(a) && ISINT32(b)) {
+				int32_t res;
+
+				if (a.i32 % b.i32 == 0)
+					m_stack.push((int32_t)(a.i32 / b.i32));
+				else
+					m_stack.push(
+					    (double)a.i32 / (double)b.i32);
+			} else if (ISDOUBLE(a) && ISDOUBLE(b))
+				m_stack.push(a.dbl / b.dbl);
+			else
+				abort();
+			break;
+		};
+
+		case kEquals: {
+			JSValue a = pop();
+			JSValue b = pop();
+			if (ISINT32(a) && ISINT32(b)) {
+				int32_t res;
+
+				if (a.i32 == b.i32)
+					m_stack.push(true);
+				else
+					m_stack.push(false);
+			} else if (ISDOUBLE(a) && ISDOUBLE(b))
+				m_stack.push(DBLEQ(a, b));
+			else
+				abort();
+			break;
+		};
 
 		case kCall: {
 			uint8_t nArgs = FETCH;
@@ -242,6 +327,7 @@ Interpreter::interpret()
 		}
 
 		case kReturn:
+		{
 			JSValue val = pop();
 
 			if (m_stack.empty()) {
@@ -262,9 +348,15 @@ Interpreter::interpret()
 				    pop().obj);
 				m_bp = pop().i32;
 				m_pc = pop().i32;
+				assert(m_env);
+				assert(m_closure);
 				m_stack.push(val);
 			}
 			break;
+		}
+
+		default:
+			abort();
 		}
 	}
 }

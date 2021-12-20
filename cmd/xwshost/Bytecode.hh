@@ -20,9 +20,33 @@ enum Op {
 
 	kPop,
 
+	/** mostly replicates AST.hh BinOp enum */
+	kExp,
+	kMul,
+	kDiv,
+	kMod,
 	kAdd,
+	kSub,
+	kLShift,
+	kRShift,
+	kURShift,
+	kLessThan,
+	kGreaterThan,
+	kLessThanOrEq,
+	kGreaterThanOrEq,
+	kInstanceOf,
+	kAmong, /* in */
+	kEquals,
+	kNotEquals,
+	kStrictEquals,
+	kStrictNotEquals,
+	kBitAnd,
+	kBitXor,
+	kBitOr,
+	kAnd,
+	kOr,
 
-	kJump,	      /* u16 pc-offset */
+	kJump,    /* u16 pc-offset */
 	kJumpIfFalse, /* u16 pc-offset */
 
 	kCall, /* u8 numArgs */

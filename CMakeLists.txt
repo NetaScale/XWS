@@ -49,4 +49,5 @@ if (NOT BISON_FOUND)
 	message(STATUS "Bison for Windows used: " ${BISON_EXECUTABLE})
 endif ()
 
+add_subdirectory(lib/mps)
 add_subdirectory(cmd/xwshost)

@@ -6,12 +6,23 @@
 #include <stdint.h>
 
 #include "Bytecode.hh"
+#include "ObjectMemory.hh"
 #include "VM.hh"
 
 namespace VM {
 
 static const int gSmiMax = INT32_MAX / 2, gSmiMin = INT32_MIN / 2;
 static const double gEpsilon = std::numeric_limits<double>::epsilon();
+
+UndefinedDesc ObjectMemory::s_undefinedDesc;
+NullDesc ObjectMemory::s_nullDesc;
+BooleanDesc ObjectMemory::s_trueDesc;
+BooleanDesc ObjectMemory::s_falseDesc;
+
+Oop ObjectMemory::s_undefined(&s_undefinedDesc);
+Oop ObjectMemory::s_null(&s_nullDesc);
+Oop ObjectMemory::s_true(&s_trueDesc);
+Oop ObjectMemory::s_false(&s_falseDesc);
 
 bool
 JSValue::JS_ToBoolean()

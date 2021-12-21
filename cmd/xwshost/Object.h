@@ -11,10 +11,19 @@
  * Oops
  * ----
  * An Oop (Object-Oriented Pointer) is the basic value type. On both 32-bit and
- * 64-bit platforms, these are tagged pointers with the lowest 3 bits for a tag.
- * If the least significant bit is 0, then it is a pointer, and the remaining 2
- * 2 bits encode the type of the heap object to which they point: 0 for a
- * Double, 1 for String, 2 for Symbol, and 3 for any other sort of heap object.
+ * 64-bit platforms, these are tagged pointers with the lowest 4 bits for a tag.
+ * If the least significant bit is 0, then it is a pointer to a heap object.
+
+ * This leaves 3 bits to store type. Having established that the LSB is 0, we
+ * now interpert the 4-bit tag component thus:
+ *
+ * - 0: Double
+ * - 2: Undefined
+ * - 4: Null
+ * - 6: Boolean
+ * - 8: BigInt
+ * - 10: Symbol
+ * - 12: String
  *
  * Heap Objects
  * ------------
@@ -27,9 +36,20 @@ class Oop {
     public:
 	enum PtrType {
 		kDouble = 0,
-		kString = 2,
-		kSymbol = 4,
-		kObject = 6,
+
+		/*
+		 * These three could be elided in the future since they are
+		 * singletons and a simple equality test of the pointer should
+		 * suffice.
+		 */
+		kUndefined = 2,
+		kNull = 4,
+		kBoolean = 6,
+
+		kBigInt = 8,
+		kSymbol = 10,
+		kString = 12,
+		kObject = 14,
 	};
 
 	Oop(void *val)
@@ -52,7 +72,7 @@ class Oop {
 
 	/** quick access to a known double; no need to mask off tag */
 	inline double *asDblPtr() { return (double *)m_full; }
-	inline void *asPtr() { return (void *)(m_full & ~7); }
+	inline void *asPtr() { return (void *)(m_full & ~15); }
 
 	/**
 	 * These differ between 32- and 64-bit platforms.
@@ -75,9 +95,42 @@ class Oop {
 #endif
 };
 
+/** Heap-allocated double. */
 class DoubleDesc {
-	double m_dbl;
-	int64_t space;
+	union {
+		double m_dbl;
+		void *m_fwd;
+	};
+	bool m_isFwd;
+};
+
+/** Singleton undefined. */
+class UndefinedDesc {
+};
+
+/** Singleton null. */
+class NullDesc {
+};
+
+/** Singleton true and false. */
+class BooleanDesc {
+};
+
+/** Heap-allocated string or symbol. */
+class StringDesc {
+	union {
+		char *m_str;
+		StringDesc *m_fwd;
+	};
+	bool m_isFwd;
+};
+
+/** Heap-allocated object. */
+class ObjectDesc {
+	struct {
+
+		bool isFwd : 1;
+	};
 };
 
 #endif /* OBJECT_H_ */

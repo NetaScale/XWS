@@ -380,25 +380,35 @@ int
 BytecodeGenerator::visitIf(IfNode *node, ExprNode *cond, StmtNode *ifCode,
     StmtNode *elseCode)
 {
-	size_t jumpPastIfCode, jumpPastElseCode;
+	/** Location of conditional jump instruction to jump to else-case */
+	size_t jumpPastIfCode;
+	/*
+	 * Location of jump instruction within if-case body to skip the
+	 * else-case.
+	 */
+	size_t jumpPastElseCode;
 
 	enterStmt(node, coder()->pos());
 
 	cond->accept(*this);
+	/* jump past the if-code if false; 0 is a placeholder */
 	coder()->emit1i16(VM::kJumpIfFalse, 0);
+
 	jumpPastIfCode = coder()->pos();
 	ifCode->accept(*this);
 
 	if (elseCode) {
-		/* EMIT UNCONDITIONAL JUMP */
+		/* jump past the else-case code; 0 is a placeholder */
 		coder()->emit1i16(VM::kJump, 0);
 		jumpPastElseCode = coder()->pos();
 	}
 
+	/* patch jump target to after if-case */
 	coder()->replaceJumpTarget(jumpPastIfCode, coder()->pos());
 
 	if (elseCode) {
 		elseCode->accept(*this);
+		/* patch jump target to after else-case  */
 		coder()->replaceJumpTarget(jumpPastElseCode, coder()->pos());
 	}
 

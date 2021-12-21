@@ -13,8 +13,7 @@
 #include "AST.hh"
 #include "VM.hh"
 
-int
-main(int argc, char *arg[])
+int main2(int argc, char * argv[], ObjectMemoryOSThread& omemt)
 {
 	/*std::string tst("const y = 40;\n"
 			"const fn = function fn(a, b) { return a + b + y; }\n"
@@ -42,4 +41,13 @@ main(int argc, char *arg[])
 	interp.interpret();
 
 	return 0;
+}
+
+int
+main(int argc, char *argv[])
+{
+	void * marker = &marker;
+	ObjectMemory omem;
+	ObjectMemoryOSThread omemt(omem, marker);
+	return main2(argc, argv, omemt);
 }

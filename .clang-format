@@ -44,6 +44,7 @@ DerivePointerAlignment: false
 DisableFormat: false
 ForEachMacros:
   - FOR_EACH
+  - MPS_ARGS_BEGIN
   - MPS_SCAN_BEGIN
 IndentCaseLabels: false
 IndentPPDirectives: None

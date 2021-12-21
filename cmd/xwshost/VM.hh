@@ -7,6 +7,8 @@
 #include <stdint.h>
 #include <vector>
 
+#include "ObjectMemory.hh"
+
 namespace VM {
 
 class JSObject;

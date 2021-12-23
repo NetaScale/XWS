@@ -1,7 +1,12 @@
 #ifndef OBJECTMEMORY_HH_
 #define OBJECTMEMORY_HH_
 
+#include <vector>
+
 #include "Object.h"
+
+#define ALIGNMENT 16
+#define ALIGN(size) (((size) + ALIGNMENT - 1) & ~(ALIGNMENT - 1))
 
 class ObjectMemory {
 	friend class ObjectMemoryOSThread;
@@ -23,12 +28,10 @@ class ObjectMemory {
 	/** AMCZ pool for PrimDescs. */
 	mps_pool_t m_mpsPrimDescPool;
 
-	public:
-	static Oop s_undefined, s_null, s_true, s_false;
+    public:
+	static PrimOop s_undefined, s_null, s_true, s_false;
 
 	ObjectMemory();
-
-	Oop makeDouble(double val);
 };
 
 /**
@@ -46,7 +49,16 @@ class ObjectMemoryOSThread {
 	mps_thr_t m_mpsThread;
 
     public:
-	ObjectMemoryOSThread(ObjectMemory &omem, void * marker);
+	ObjectMemoryOSThread(ObjectMemory &omem, void *marker);
+
+	MemOop<PlainArray> makeArray(size_t size);
+	PrimOop makeDouble(double val);
+	PrimOop makeString(const char * txt);
+	MemOop<Environment> makeEnvironment(MemOop<Environment> prev,
+	    MemOop<EnvironmentMap> map, size_t nArgs);
+	MemOop<EnvironmentMap> makeEnvironmentMap(
+	    const std::vector<char *> &paramNames,
+	    const std::vector<char *> &localNames);
 };
 
 #endif /* OBJECTMEMORY_HH_ */

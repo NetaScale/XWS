@@ -126,9 +126,6 @@ ObjectMemoryOSThread::ObjectMemoryOSThread(ObjectMemory &omem, void *marker)
 		FATAL("Couldn't create root");
 }
 
-#define ALIGNMENT 16
-#define ALIGN(size) (((size) + ALIGNMENT - 1) & ~(ALIGNMENT - 1))
-
 mps_res_t
 PrimDesc::mpsScan(mps_ss_t ss, mps_addr_t base, mps_addr_t limit)
 {
@@ -149,10 +146,10 @@ PrimDesc::mpsSkip(mps_addr_t base)
 	switch (p->m_kind) {
 	case kString:
 	case kSymbol:
-		if (p->m_len > 4)
+		if (p->m_strLen > 6)
 			/** -6 not -7 due to final NULL */
 			p = (PrimDesc *)((char *)p +
-			    ALIGN(sizeof(PrimDesc) + p->m_len - 6));
+			    ALIGN(sizeof(PrimDesc) + p->m_strLen - 6));
 		else
 			base = (char *)base + sizeof(PrimDesc);
 
@@ -163,7 +160,7 @@ PrimDesc::mpsSkip(mps_addr_t base)
 
 	case kPad:
 		p = (PrimDesc *)((char *)p +
-		    ALIGN(sizeof(PrimDesc) + p->m_len - 3));
+		    ALIGN(sizeof(PrimDesc) + p->m_padLen));
 
 	case kFwd:
 		p = (PrimDesc *)((char *)p + p->m_fwdLength);
@@ -206,7 +203,7 @@ PrimDesc::mpsPad(mps_addr_t addr, size_t size)
 		p->m_kind = kPad16;
 	else {
 		p->m_kind = kPad;
-		p->m_len = size;
+		p->m_padLen = size;
 	}
 }
 

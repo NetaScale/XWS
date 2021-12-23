@@ -2,6 +2,7 @@
 #define OBJECT_H_
 
 #include <iostream>
+#include <map>
 #include <stdint.h>
 
 extern "C" {
@@ -43,6 +44,14 @@ class Interpreter;
  */
 
 #define XWS_64_BIT_WORD
+
+class Smi;
+class ObjectDesc;
+class PrimDesc;
+class ObjectMemory;
+class ObjectMemoryOSThread;
+template <class T> class MemOop;
+typedef MemOop<PrimDesc> PrimOop;
 
 class Oop {
     public:
@@ -90,13 +99,19 @@ class Oop {
 		kSmi = 1,
 	};
 
+	Oop();
+	Oop(ObjectDesc * val) : m_full((uintptr_t) val | kObject) {};
 	Oop(void *val)
 	    : m_full((uintptr_t)val) {};
 	Oop(void *val, Type tag)
 	    : m_full((uintptr_t)val | tag) {};
 
+	static Oop getUndefined();
+
 	/** is it a SmallInteger? */
 	inline bool isSmi() const { return (m_full & 1); }
+	/** is it the undefined singleton? */
+	inline bool isUndefined() const;
 	/** is it a pointer? */
 	inline bool isPtr() const { return !(m_full & 1); }
 	/** what is its type? */
@@ -107,21 +122,42 @@ class Oop {
 	void print() const;
 
 	/** ES2022 7.1.1 */
-	inline Oop JS_toPrimitive(ObjectMemory &omem);
+	inline PrimOop JS_toPrimitive(ObjectMemory &omem);
 	/** ES2022 7.1.2 */
 	inline bool JS_ToBoolean();
 	/** ES2022 7.1.3 */
 	inline Oop JS_ToNumeric(ObjectMemory &omem);
 	/** ES2022 7.1.3 */
-	inline Oop JS_ToNumber(ObjectMemory &omem);
+	inline Oop JS_ToNumber(ObjectMemoryOSThread &omem);
 
 	/** quick access to a known double; no need to mask off tag */
 	inline double *dblAddr() const { return (double *)m_full; }
 	/** the Oop as a pointer; masks off tag bits */
-	template <class T> inline T *addr() const
+	template <class T2> inline T2 *addrT() const
 	{
-		return (T *)(m_full & ~15);
+		return (T2 *)(m_full & ~15);
 	}
+};
+
+class Smi : public Oop {
+    public:
+	Smi(int32_t i32)
+	    : Oop(i32) {};
+};
+
+template <class T = PrimDesc> class MemOop : public Oop {
+    public:
+	MemOop() { }
+	MemOop(ObjectDesc *val)
+	    : Oop(val) {};
+	MemOop(void *val)
+	    : Oop(val) {};
+	MemOop(void *val, Type tag)
+	    : Oop(val, tag) {};
+
+	inline T &operator*() { return *Oop::template addrT<T>(); }
+
+	inline T *operator->() { return Oop::template addrT<T>(); }
 };
 
 /** Singleton undefined. */
@@ -150,8 +186,14 @@ struct PrimDesc {
 
 	union {
 		double m_dbl;
-		/** string or padding length */
-		size_t m_len;
+		/**
+		 * String length, minus NULL byte.
+		 */
+		size_t m_strLen;
+		/**
+		 * Length of whole padding object.
+		 */
+		size_t m_padLen;
 		PrimDesc *m_fwd;
 	};
 	struct {
@@ -172,9 +214,30 @@ struct PrimDesc {
 
 /** Heap-allocated object. */
 class ObjectDesc {
-	union {
-		ObjectDesc *m_fwd;
+	public:
+
+	enum Kind {
+		/* these are pseudo-objects */
+		kFwd,
+		kPad,
+		kEnvironmentMap,
+		kEnvironment,
+		kPlainArray,
+		kMap,
+
+		/*
+		 * the following are proper objects (subclass ProperObjectDesc)
+		 */ 
+		kFunction,
+		kClosure,
 	};
+
+	struct {
+		Kind m_kind: 16;
+		int64_t m_bits: 48;
+	};
+
+	ObjectDesc(Kind kind): m_kind(kind) {};
 
 	static mps_res_t mpsScan(mps_ss_t ss, mps_addr_t base,
 	    mps_addr_t limit);
@@ -184,6 +247,85 @@ class ObjectDesc {
 	static void mpsPad(mps_addr_t addr, size_t size);
 };
 
-//#include "Object.inl.hh"
+class Fwd : public ObjectDesc {
+	ObjectDesc *m_ptr;
+	size_t m_size;
+};
+
+struct Pad : public ObjectDesc {
+	size_t m_size;
+};
+
+struct PlainArray: public ObjectDesc {
+	size_t m_nElements;
+	Oop m_elements[0];
+};
+
+struct EnvironmentMap : public ObjectDesc {
+	size_t m_nParams;
+	size_t m_nLocals;
+	PrimOop m_names[0]; /* param names followed by locals */
+
+	EnvironmentMap(size_t nParams, size_t nLocals)
+	    : ObjectDesc(kEnvironmentMap)
+	    , m_nParams(nParams)
+	    , m_nLocals(nLocals) {};
+};
+
+struct Environment : public ObjectDesc {
+	MemOop<EnvironmentMap> m_map;
+	MemOop<Environment> m_prev;
+	MemOop<PlainArray> m_args;
+	MemOop<PlainArray> m_locals;
+
+	Environment(MemOop<Environment> prev, MemOop<EnvironmentMap> map,
+	    MemOop<PlainArray> args, MemOop<PlainArray> locals)
+	    : ObjectDesc(kEnvironment)
+	    , m_prev(prev)
+	    , m_map(map)
+	    , m_args(args)
+	    , m_locals(locals) {};
+
+	Oop &lookup(const char *val);
+};
+
+/**
+ * Describes the structure of a ProperObject.
+ */
+struct Map : public ObjectDesc {
+	enum Reason {
+		kAddProp,
+		kDelProp,
+	};
+
+	struct PropertyDesc {
+		uint32_t m_idx; /**< index in objects' namedVals array */
+		struct {
+			bool esWritable : 1; 
+			bool esEnumerable : 1; 
+			bool esConfigurable : 1;
+		} m_attributes;
+
+		PrimOop m_name;
+	};
+
+	/**
+	 * Oop to transitions array. It is an array laid out in this pattern:
+	 * [ Smi reason, Oop<Map> to ]
+	 * where `reason` is a value from enum #Reason.
+	 */
+	MemOop<PlainArray> m_transitions;
+	/**
+	 * Property descriptions stored inline.
+	 */
+	PropertyDesc m_props[0];
+};
+
+struct ProperObject: public ObjectDesc {
+	MemOop<Map> m_map;
+	MemOop<PlainArray> m_indexedVals;
+	MemOop<PlainArray> m_namedVals;
+};
+
 
 #endif /* OBJECT_H_ */

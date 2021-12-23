@@ -2,13 +2,21 @@
 #define OBJECT_INL_H_
 
 #include <cmath>
+#include <cstdio>
 #include <cstring>
-
-#include "Object.h"
 
 #include "ObjectMemory.hh"
 
-bool
+inline Oop::Oop()
+    : m_full(ObjectMemory::s_undefined.m_full) {};
+
+inline bool
+Oop::isUndefined() const
+{
+	return m_full == ObjectMemory::s_undefined.m_full;
+}
+
+inline bool
 Oop::JS_ToBoolean()
 {
 	if (isSmi())
@@ -28,7 +36,7 @@ Oop::JS_ToBoolean()
 			return m_full == ObjectMemory::s_true.m_full;
 
 		case kString:
-			return strlen(addr<StringDesc>()->m_str) == 0;
+			return strlen(addrT<PrimDesc>()->m_str) == 0;
 
 		case kObject:
 			return true;
@@ -43,23 +51,25 @@ Oop::JS_ToBoolean()
 		}
 }
 
-Oop Oop::JS_ToNumber(ObjectMemory & omem)
+inline Oop
+Oop::JS_ToNumber(ObjectMemoryOSThread &omem)
 {
 	if (isSmi())
-		return *this;
+		return *(PrimOop*)this;
 	else
 		switch (tag()) {
 		case kDouble:
-			return *this;
+			return *(PrimOop*)this;
 
 		case kUndefined:
 			return omem.makeDouble(nan(""));
 
 		case kNull:
-			return Oop(0);
+			return Smi(0);
 
 		case kBoolean:
-			return Oop(m_full == ObjectMemory::s_true.m_full ? 1 : 0);
+			return Oop((m_full == ObjectMemory::s_true.m_full
+			    ? 1 : 0));
 
 		case kString:
 			abort();
@@ -75,6 +85,29 @@ Oop Oop::JS_ToNumber(ObjectMemory & omem)
 		case kBigInt:
 			abort();
 		}
+}
+
+inline Oop&
+Environment::lookup(const char *val)
+{
+	for (size_t max = m_map->m_nLocals + m_map->m_nParams;
+	     max >= m_map->m_nParams; max--) {
+		if (!strcmp(m_map->m_names[max]->m_str, val)) {
+			printf("Resolved %s to local %lu\n", val,
+			    max - m_map->m_nParams);
+			return m_locals->m_elements[max];
+		}
+	}
+
+	for (size_t max = m_map->m_nParams; max >= 0; max--) {
+		if (!strcmp(m_map->m_names[max]->m_str, val)) {
+			printf("Resolved %s to argument %lu\n", val,
+			    max - m_map->m_nParams);
+			return m_args->m_elements[max];
+		}
+	}
+
+	return !m_prev.isUndefined() ? m_prev->lookup(val) : throw "Not resolved";
 }
 
 #endif /* OBJECT_INL_H_ */

@@ -53,7 +53,7 @@ class JSObject {
 	virtual void print() { return; }
 };
 
-struct ScopeMap {
+struct EnvironmentMap {
 	std::vector<char *> m_localNames;
 	std::vector<char *> m_paramNames;
 };
@@ -61,7 +61,7 @@ struct ScopeMap {
 /**
  * An underlying JavaScript function object.
  */
-class JSFunction : public JSObject, public ScopeMap {
+class JSFunction : public JSObject, public EnvironmentMap {
     public:
 	std::vector<char> m_bytecode;
 	std::vector<JSValue> m_literals;
@@ -71,12 +71,12 @@ class JSFunction : public JSObject, public ScopeMap {
 };
 
 struct Environment : public JSObject {
-	ScopeMap *m_map;
+	EnvironmentMap *m_map;
 	Environment *m_prev;
-		std::vector<JSValue> m_params;
-			std::vector<JSValue> m_locals;
+	std::vector<JSValue> m_params;
+	std::vector<JSValue> m_locals;
 
-	Environment(ScopeMap *map, Environment * prev = NULL);
+	Environment(EnvironmentMap *map, Environment * prev = NULL);
 
 	JSValue resolve(const char *id);
 	void resolveStore(const char * id, JSValue val);

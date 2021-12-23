@@ -15,114 +15,15 @@ NullDesc ObjectMemory::s_nullDesc;
 BooleanDesc ObjectMemory::s_trueDesc;
 BooleanDesc ObjectMemory::s_falseDesc;
 
-PrimOop ObjectMemory::s_undefined(&s_undefinedDesc);
-PrimOop ObjectMemory::s_null(&s_nullDesc);
-PrimOop ObjectMemory::s_true(&s_trueDesc);
-PrimOop ObjectMemory::s_false(&s_falseDesc);
+PrimOop ObjectMemory::s_undefined(&s_undefinedDesc, Oop::kUndefined);
+PrimOop ObjectMemory::s_null(&s_nullDesc, Oop::kNull);
+PrimOop ObjectMemory::s_true(&s_trueDesc, Oop::kBoolean);
+PrimOop ObjectMemory::s_false(&s_falseDesc, Oop::kBoolean);
 
 namespace VM {
 
 static const int gSmiMax = INT32_MAX / 2, gSmiMin = INT32_MIN / 2;
 static const double gEpsilon = std::numeric_limits<double>::epsilon();
-
-
-bool
-JSValue::JS_ToBoolean()
-{
-	switch (type) {
-	case kUndefined:
-		return false;
-	case kInt32:
-		return i32 != 0;
-	case kString:
-		return strlen(str) != 0;
-	case kDouble: {
-		int cls = fpclassify(dbl);
-		return cls != FP_NAN && cls != FP_ZERO;
-	}
-	case kObject:
-		return true;
-	}
-}
-
-void
-JSValue::print()
-{
-	switch (type) {
-	case kUndefined:
-		printf("undefined");
-		break;
-	case kInt32:
-		printf("i32:%d", i32);
-		break;
-	case kString:
-		printf("str:%s", str);
-		break;
-	case kDouble:
-		printf("dbl:%lf", dbl);
-		break;
-	case kObject:
-		return (void)obj->print();
-	}
-}
-
-Environment::Environment(EnvironmentMap *map, Environment *prev)
-    : m_map(map)
-    , m_prev(prev)
-{
-	m_locals.resize(map->m_localNames.size(), JSValue());
-	m_params.resize(map->m_paramNames.size(), JSValue());
-}
-
-JSValue
-Environment::resolve(const char *id)
-{
-	for (int i = 0; i < m_locals.size(); i++) {
-		if (m_map->m_localNames[i] != NULL &&
-		    !strcmp(m_map->m_localNames[i], id)) {
-			printf("Resolved identifier %s to local %d: ", id, i);
-			m_locals[i].print();
-			printf("\n");
-			return m_locals[i];
-		}
-	}
-
-	for (int i = 0; i < m_params.size(); i++) {
-		if (m_map->m_paramNames[i] != NULL &&
-		    !strcmp(m_map->m_paramNames[i], id)) {
-			printf("Resolved identifier %s to parameter %d: ", id,
-			    i);
-			m_params[i].print();
-			printf("\n");
-			return m_params[i];
-		}
-	}
-
-	return m_prev ? m_prev->resolve(id) : throw "Not resolved\n";
-}
-
-void
-Environment::resolveStore(const char *id, JSValue val)
-{
-	for (int i = 0; i < m_locals.size(); i++) {
-		if (m_map->m_localNames[i] != NULL &&
-		    !strcmp(m_map->m_localNames[i], id)) {
-			printf("Resolved identifier %s to local %d: ", id, i);
-			return (void)(m_locals[i] = val);
-		}
-	}
-
-	for (int i = 0; i < m_params.size(); i++) {
-		if (m_map->m_paramNames[i] != NULL &&
-		    !strcmp(m_map->m_paramNames[i], id)) {
-			printf("Resolved identifier %s to parameter %d: ", id,
-			    i);
-			return (void)(m_params[i] = val);
-		}
-	}
-
-	return m_prev ? m_prev->resolveStore(id, val) : throw "Not resolved\n";
-}
 
 JSValue
 Interpreter::pop()

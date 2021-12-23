@@ -11,53 +11,6 @@
 
 namespace VM {
 
-class JSObject;
-
-struct JSValue {
-	enum Type {
-		kUndefined,
-		kInt32,
-		kString,
-		kDouble,
-		kObject,
-	} type;
-
-	union {
-		int32_t i32;
-		char *str;
-		double dbl;
-		JSObject * obj;
-	};
-
-	JSValue() : type(kUndefined), obj(0) {};
-	JSValue(int32_t val)
-	    : type(kInt32)
-	    , i32(val) {};
-	JSValue(const char *val)
-	    : type(kDouble)
-	    , str(strdup(val)) {};
-	JSValue(double val)
-	    : type(kDouble)
-	    , dbl(val) {};
-	JSValue(JSObject *val)
-	    : type(kObject)
-	    , obj(val) {};
-
-	bool JS_ToBoolean();
-
-	void print();
-};
-
-class JSObject {
-	public:
-	virtual void print() { return; }
-};
-
-struct EnvironmentMap {
-	std::vector<char *> m_localNames;
-	std::vector<char *> m_paramNames;
-};
-
 /**
  * An underlying JavaScript function object.
  */
@@ -68,18 +21,6 @@ class JSFunction : public JSObject, public EnvironmentMap {
 
 	void disassemble(); /* bytecode.cc */
 	void print() { printf("func"); }
-};
-
-struct Environment : public JSObject {
-	EnvironmentMap *m_map;
-	Environment *m_prev;
-	std::vector<JSValue> m_params;
-	std::vector<JSValue> m_locals;
-
-	Environment(EnvironmentMap *map, Environment * prev = NULL);
-
-	JSValue resolve(const char *id);
-	void resolveStore(const char * id, JSValue val);
 };
 
 /**

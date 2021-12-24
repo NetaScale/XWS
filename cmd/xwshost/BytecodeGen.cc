@@ -1,6 +1,7 @@
 #include <cstring>
 #include <stack>
 #include <stdio.h>
+#include "Object.h"
 
 #include "AST.hh"
 #include "Bytecode.hh"
@@ -38,10 +39,11 @@ class GenerationContext {
 class BytecodeGenerator : public Visitor {
 	friend class DestructuringVisitor;
 
+	ObjectMemoryOSThread & m_omemt;
 	std::stack<GenerationContext *> m_ctx;
-	std::stack<VM::JSFunction *> m_funcs;
+	//std::stack<MemOop<Function> > m_funcs;
 	std::stack<VM::BytecodeEncoder *> m_gens;
-	VM::JSFunction *m_script;
+	MemOop<Function> m_script;
 
 	struct LabelDescriptor {
 		const char *m_ident;
@@ -63,8 +65,8 @@ class BytecodeGenerator : public Visitor {
 
 	inline VM::BytecodeEncoder *coder() { return m_gens.top(); }
 
-	VM::JSFunction *enterNewFunction();
-	VM::JSFunction *exitFunction(DeclEnv *env);
+	void enterNewFunction();
+	MemOop<Function>exitFunction(DeclEnv *env);
 
 	/** Sets up label stack for a statement. */
 	void enterStmt(StmtNode *stmt, size_t beginPos);
@@ -99,9 +101,9 @@ class BytecodeGenerator : public Visitor {
 	int visitScript(ScriptNode *node, StmtNode::Vec *stmts);
 
     public:
-	BytecodeGenerator();
+	BytecodeGenerator(ObjectMemoryOSThread & omemt);
 
-	VM::JSFunction *script() { return m_script; }
+	MemOop<Function> script() { return m_script; }
 };
 
 class DestructuringVisitor : public Visitor {
@@ -150,6 +152,34 @@ class Hoister : public Visitor {
 	Hoister()
 	    : m_inArgs(-1) {};
 };
+
+void disassemble(char * code, int siz);
+
+MemOop<Function>
+VM::BytecodeEncoder::makeFun(std::vector<char *> &localNames,
+    std::vector<char *> &paramNames)
+{
+	printf("\n\n INITIAL DIS\n\n");
+	disassemble(m_bytecode.data(), m_bytecode.size());
+	printf("DONE\n\n");
+
+	MemOop<CharArray> bytecode = m_omemt.makeCharArray(m_bytecode);
+
+	printf("\n\n Byte DIS 1\n\n");
+		disassemble(bytecode->m_elements,bytecode->m_nElements);
+	printf("DONE\n\n");
+
+
+	MemOop<EnvironmentMap> envMap = m_omemt.makeEnvironmentMap(paramNames,
+	    localNames);
+	MemOop<PlainArray> literals = m_omemt.makeArray(m_literals.size());
+	memcpy(literals->m_elements, m_literals.data(), m_literals.size() * sizeof(Oop));
+
+	printf("\n\n Byte DIS 2\n\n");
+		disassemble(bytecode->m_elements,bytecode->m_nElements);
+	printf("DONE\n\n");
+	return m_omemt.makeFunction(envMap, bytecode, literals);
+}
 
 /*
  * hoisting
@@ -225,43 +255,46 @@ Hoister::visitSingleNameDestructuring(SingleNameDestructuringNode *node,
  * bytecode generation
  */
 
-BytecodeGenerator::BytecodeGenerator()
+BytecodeGenerator::BytecodeGenerator(ObjectMemoryOSThread &omemt)
+    : m_omemt(omemt)
 {
 	m_ctx.push(new GenerationContext(GenerationContext::kGlobal));
 }
 
-VM::JSFunction *
+void
 BytecodeGenerator::enterNewFunction()
 {
-	VM::JSFunction *jsf = new VM::JSFunction;
-	VM::BytecodeEncoder *encoder = new VM::BytecodeEncoder(jsf);
-
-	m_funcs.push(jsf);
+	VM::BytecodeEncoder *encoder = new VM::BytecodeEncoder(m_omemt);
 	m_gens.push(encoder);
-
-	return jsf;
 }
 
-VM::JSFunction *
+MemOop<Function>
 BytecodeGenerator::exitFunction(DeclEnv *env)
 {
-	VM::JSFunction *jsf = m_funcs.top();
-
-	for (std::map<std::string, Decl *>::iterator it = env->m_decls.begin();
-	     it != env->m_decls.end(); it++)
-		if (it->second->m_type == Decl::kLocal)
-			m_funcs.top()->m_localNames.push_back(
-			    strdup(it->first.c_str()));
-		else if (it->second->m_type == Decl::kArg) {
-			m_funcs.top()->m_paramNames[it->second->m_idx] = strdup(
-			    it->first.c_str());
-		}
+	MemOop<Function> jsf;
+	std::vector<char*> localNames;
+	std::vector<char*> paramNames;
 
 	m_gens.top()->emit0(VM::kPushUndefined);
 	m_gens.top()->emit0(VM::kReturn);
+	
+	for (std::map<std::string, Decl *>::iterator it = env->m_decls.begin();
+	     it != env->m_decls.end(); it++)
+		if (it->second->m_type == Decl::kLocal)
+			localNames.push_back(
+			    strdup(it->first.c_str()));
+		else if (it->second->m_type == Decl::kArg) {
+			if (it->second->m_idx + 1 > paramNames.size())
+				paramNames.resize(it->second->m_idx + 1, NULL);
+			paramNames[it->second->m_idx] = strdup(
+			    it->first.c_str());
+		}
+
+
+	jsf = m_gens.top()->makeFun(localNames, paramNames);
 	delete m_gens.top();
 	m_gens.pop();
-	m_funcs.pop();
+
 	return jsf;
 }
 
@@ -333,11 +366,12 @@ BytecodeGenerator::visitFunExpr(FunctionExprNode *node, const char *name,
     std::vector<DestructuringNode *> *formals, std::vector<StmtNode *> *body)
 {
 	int nParams = 0;
-	VM::JSFunction *jsf;
+	MemOop<Function> jsf;
 
 	m_ctx.push(new GenerationContext(GenerationContext::kFunction));
-	jsf = enterNewFunction();
-	jsf->m_paramNames.resize(formals->size(), NULL);
+	enterNewFunction();
+	//jsf = enterNewFunction();
+	//jsf->m_paramNames.resize(formals->size(), NULL);
 
 	FOR_EACH (std::vector<DestructuringNode *>, it, *formals) {
 		DestructuringVisitor destr(*this, nParams++);
@@ -348,7 +382,7 @@ BytecodeGenerator::visitFunExpr(FunctionExprNode *node, const char *name,
 		(*it)->accept(*this);
 	}
 
-	exitFunction(node);
+	jsf = exitFunction(node);
 	delete (m_ctx.top());
 	m_ctx.pop();
 
@@ -522,11 +556,11 @@ BytecodeGenerator::visitScript(ScriptNode *node, StmtNode::Vec *stmts)
 	return 0;
 }
 
-VM::JSFunction *
+MemOop<Function>
 Driver::generateBytecode()
 {
 	Hoister hoister;
-	BytecodeGenerator visitor;
+	BytecodeGenerator visitor(m_omemt);
 	m_script->accept(hoister);
 	m_script->accept(visitor);
 	return visitor.script();

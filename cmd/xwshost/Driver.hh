@@ -1,9 +1,9 @@
 #ifndef DRIVER_HH_
 #define DRIVER_HH_
 
-namespace VM {
-class JSFunction;
-};
+#include "Object.h"
+
+class ObjectMemoryOSThread;
 
 #ifndef YY_TYPEDEF_YY_SCANNER_T
 #define YY_TYPEDEF_YY_SCANNER_T
@@ -17,6 +17,7 @@ class Driver {
     public:
 	yyscan_t scanner;
 	const char *txt;
+	ObjectMemoryOSThread & m_omemt;
 
 	union {
 		ScriptNode *m_script;
@@ -27,7 +28,9 @@ class Driver {
 		kModule,
 	} m_resultType;
 
-	VM::JSFunction *generateBytecode();
+	Driver(ObjectMemoryOSThread & omemt) : m_omemt(omemt) {}
+
+	MemOop<Function> generateBytecode();
 };
 
 #endif /* DRIVER_HH_ */

@@ -20,7 +20,7 @@ int main2(int argc, char * argv[], ObjectMemoryOSThread& omemt)
 			"return fn(1, 2);");*/
 	std::string tst("const fn = (a = 1, b) => a + b;\n"
 	    "return fn(1, 2);");
-	Driver drv;
+	Driver drv(omemt);
 	YY_BUFFER_STATE yybuf;
 
 	std::cout << VERINFO << "\n" << CPYRIGHT << "\n" << USE << "\n";
@@ -28,7 +28,7 @@ int main2(int argc, char * argv[], ObjectMemoryOSThread& omemt)
 	jslex_init_extra(&drv, &drv.scanner);
 	yybuf = js_scan_string(tst.c_str(), drv.scanner);
 	drv.txt =tst.c_str();
-	jsdebug = 1;
+	//jsdebug = 1;
 	jsparse(&drv);
 
 	/* Now we can clean up the buffer. */
@@ -36,7 +36,7 @@ int main2(int argc, char * argv[], ObjectMemoryOSThread& omemt)
 	/* And, finally, destroy this scanner. */
 	jslex_destroy(drv.scanner);
 
-	VM::Interpreter interp(new VM::JSClosure(drv.generateBytecode()));
+	VM::Interpreter interp(omemt, omemt.makeClosure(drv.generateBytecode(), *(MemOop<Environment>*)&ObjectMemory::s_undefined));
 	printf("INTERPRETATION BEGINS:\n");
 	interp.interpret();
 

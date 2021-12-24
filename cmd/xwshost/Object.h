@@ -162,14 +162,17 @@ template <class T = PrimDesc> class MemOop : public Oop {
 
 /** Singleton undefined. */
 class UndefinedDesc {
+	int64_t padding1, padding2;
 };
 
 /** Singleton null. */
 class NullDesc {
+	int64_t padding1, padding2;
 };
 
 /** Singleton true and false. */
 class BooleanDesc {
+	int64_t padding1, padding2;
 };
 
 /** Heap-allocated primitive. */
@@ -224,12 +227,14 @@ class ObjectDesc {
 		kEnvironment,
 		kPlainArray,
 		kMap,
+		kCharArray,
+		/* these are pseudo for now but need to be promoted */
+		kFunction,
+		kClosure,
 
 		/*
 		 * the following are proper objects (subclass ProperObjectDesc)
 		 */ 
-		kFunction,
-		kClosure,
 	};
 
 	struct {
@@ -254,6 +259,11 @@ class Fwd : public ObjectDesc {
 
 struct Pad : public ObjectDesc {
 	size_t m_size;
+};
+
+struct CharArray: public ObjectDesc {
+	size_t m_nElements;
+	char m_elements[0];
 };
 
 struct PlainArray: public ObjectDesc {
@@ -319,6 +329,27 @@ struct Map : public ObjectDesc {
 	 * Property descriptions stored inline.
 	 */
 	PropertyDesc m_props[0];
+};
+
+/**
+ * An underlying JavaScript function object.
+ */
+class Function : public ObjectDesc  {
+    public:
+	MemOop<EnvironmentMap> m_map;
+	MemOop<CharArray> m_bytecode;
+	MemOop<PlainArray> m_literals;
+
+	void disassemble(); /* bytecode.cc */
+};
+
+/**
+ * An instantiated function object.
+ */
+class Closure : public ObjectDesc {
+    public:
+	MemOop<Function> m_func;
+	MemOop<Environment> m_baseEnv;
 };
 
 struct ProperObject: public ObjectDesc {

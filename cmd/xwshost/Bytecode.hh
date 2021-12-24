@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <vector>
 
+#include "Object.h"
+
 namespace VM {
 
 class JSValue;
@@ -55,11 +57,17 @@ enum Op {
 };
 
 class BytecodeEncoder {
-	JSFunction * m_fun;
+	ObjectMemoryOSThread & m_omemt;
+	std::vector<char> m_bytecode;
+	std::vector<Oop> m_literals;
 
     public:
-	BytecodeEncoder(JSFunction * fun)
-	    : m_fun(fun) {};
+	BytecodeEncoder(ObjectMemoryOSThread & omemt)
+	    : m_omemt(omemt) {};
+
+	
+	MemOop<Function> makeFun(std::vector<char*> &localNames,
+	std::vector<char*> & paramNames);
 
 	void emit0(Op op);
 	void emit1i16(Op op, int16_t arg1);
@@ -68,7 +76,7 @@ class BytecodeEncoder {
 
 	char litNum(double num);
 	char litStr(const char * txt);
-	char litObj(JSObject * obj);
+	char litObj(Oop obj);
 
 	void replaceJumpTarget(size_t pos, size_t newTarget);
 

@@ -6,55 +6,28 @@
 #include <stack>
 #include <stdint.h>
 #include <vector>
+#include "Object.h"
 
 #include "ObjectMemory.hh"
 
 namespace VM {
 
-/**
- * An underlying JavaScript function object.
- */
-class JSFunction : public JSObject, public EnvironmentMap {
-    public:
-	std::vector<char> m_bytecode;
-	std::vector<JSValue> m_literals;
-
-	void disassemble(); /* bytecode.cc */
-	void print() { printf("func"); }
-};
-
-/**
- * An instantiated function object.
- */
-class JSClosure : public JSObject {
-    public:
-	JSFunction *m_func;
-	Environment *m_baseEnv;
-
-	JSClosure(JSFunction *func, Environment *baseEnv = NULL)
-	    : m_func(func)
-	    , m_baseEnv(baseEnv)
-	{
-	}
-
-	void print() { printf("closure"); }
-};
 
 class Interpreter {
-	std::stack<JSValue> m_stack;
-
-	Environment *m_env;
-	JSClosure *m_closure;
+	ObjectMemoryOSThread & m_omemt;
+	std::stack<Oop> m_stack;
+	MemOop<Environment> m_env;
+	MemOop<Closure> m_closure;
 
 	/** base pointer: base of stack for current function */
 	unsigned int m_bp;
 	/** program counter */
 	unsigned int m_pc;
 
-	JSValue pop();
+	Oop pop();
 
     public:
-	Interpreter(JSClosure *closure);
+	Interpreter(ObjectMemoryOSThread & omemt, MemOop<Closure> closure);
 
 	void interpret();
 };

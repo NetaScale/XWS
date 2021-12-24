@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cstdio>
 #include <cstdlib>
 #include <err.h>
 
@@ -80,6 +81,7 @@ ObjectMemory::ObjectMemory()
 	MPS_ARGS_BEGIN (args) {
 		MPS_ARGS_ADD(args, MPS_KEY_CHAIN, m_mpsChain);
 		MPS_ARGS_ADD(args, MPS_KEY_FORMAT, m_mpsPrimDescFmt);
+		MPS_ARGS_ADD(args, MPS_KEY_ALIGN, 16);
 		MPS_ARGS_DONE(args);
 		res = mps_pool_create_k(&m_mpsPrimDescPool, m_mpsArena,
 		    mps_class_amcz(), args);
@@ -92,6 +94,7 @@ ObjectMemory::ObjectMemory()
 	MPS_ARGS_BEGIN (args) {
 		MPS_ARGS_ADD(args, MPS_KEY_CHAIN, m_mpsChain);
 		MPS_ARGS_ADD(args, MPS_KEY_FORMAT, m_mpsObjDescFmt);
+		MPS_ARGS_ADD(args, MPS_KEY_ALIGN, 16);
 		MPS_ARGS_DONE(args);
 		res = mps_pool_create_k(&m_mpsObjDescPool, m_mpsArena,
 		    mps_class_amc(), args);
@@ -129,6 +132,7 @@ ObjectMemoryOSThread::ObjectMemoryOSThread(ObjectMemory &omem, void *marker)
 mps_res_t
 PrimDesc::mpsScan(mps_ss_t ss, mps_addr_t base, mps_addr_t limit)
 {
+	printf("\n\n\nSCANNING PRIM\n\n\n");
 	MPS_SCAN_BEGIN (ss) {
 		while (base < limit) {
 			base = mpsSkip(base);
@@ -141,6 +145,7 @@ PrimDesc::mpsScan(mps_ss_t ss, mps_addr_t base, mps_addr_t limit)
 mps_addr_t
 PrimDesc::mpsSkip(mps_addr_t base)
 {
+	printf("\n\nASKED TO SKIP\n\n\n");
 	PrimDesc *p = (PrimDesc *)base;
 
 	switch (p->m_kind) {
@@ -172,6 +177,8 @@ PrimDesc::mpsSkip(mps_addr_t base)
 void
 PrimDesc::mpsFwd(mps_addr_t old, mps_addr_t newAddr)
 {
+	printf("\n\n\t ASKED TO FWD!\n\n");
+
 	PrimDesc *p = (PrimDesc *)old;
 	mps_addr_t limit = mpsSkip(old);
 	size_t size = (char *)limit - (char *)old;
@@ -196,6 +203,7 @@ PrimDesc::mpsIsFwd(mps_addr_t addr)
 void
 PrimDesc::mpsPad(mps_addr_t addr, size_t size)
 {
+		printf("\n\n\t ASKED TO PAD!\n\n");
 	PrimDesc *p = (PrimDesc *)addr;
 
 	assert(size >= sizeof(PrimDesc));
@@ -217,6 +225,8 @@ PrimDesc::mpsPad(mps_addr_t addr, size_t size)
 static mps_res_t
 scanArea(mps_ss_t ss, void *base, void *limit, void *closure)
 {
+	printf("\n\n\nSCANNING AREA\n\n\n");
+
 	MPS_SCAN_BEGIN (ss) {
 		mps_word_t *p = (mps_word_t *)base;
 		while (p < (mps_word_t *)limit) {

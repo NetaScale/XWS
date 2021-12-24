@@ -4,6 +4,10 @@ void
 Oop::print() const
 {
 	switch (type()) {
+	case kSmi:
+		printf("smi:%d", asI32());
+		break;
+
 	case kDouble:
 		printf("dbl:%lf", *dblAddr());
 		break;

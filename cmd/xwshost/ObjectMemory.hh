@@ -11,9 +11,9 @@
 class ObjectMemory {
 	friend class ObjectMemoryOSThread;
 
-	static UndefinedDesc s_undefinedDesc;
-	static NullDesc s_nullDesc;
-	static BooleanDesc s_trueDesc, s_falseDesc;
+	static UndefinedDesc * s_undefinedDesc;
+	static NullDesc * s_nullDesc;
+	static BooleanDesc * s_trueDesc, * s_falseDesc;
 
 	/** Shared global arena. */
 	static mps_arena_t m_mpsArena;
@@ -53,12 +53,16 @@ class ObjectMemoryOSThread {
 
 	MemOop<PlainArray> makeArray(size_t size);
 	PrimOop makeDouble(double val);
-	PrimOop makeString(const char * txt);
+	PrimOop makeString(const char *txt);
+	MemOop<CharArray> makeCharArray(std::vector<char> &vec);
+	MemOop<Closure> makeClosure(MemOop<Function> fun, MemOop<Environment> env);
 	MemOop<Environment> makeEnvironment(MemOop<Environment> prev,
 	    MemOop<EnvironmentMap> map, size_t nArgs);
-	MemOop<EnvironmentMap> makeEnvironmentMap(
-	    const std::vector<char *> &paramNames,
+	MemOop<EnvironmentMap>
+	makeEnvironmentMap(const std::vector<char *> &paramNames,
 	    const std::vector<char *> &localNames);
+	MemOop<Function> makeFunction(MemOop<EnvironmentMap> map,
+	    MemOop<CharArray> bytecode, MemOop<PlainArray> literals);
 };
 
 #endif /* OBJECTMEMORY_HH_ */

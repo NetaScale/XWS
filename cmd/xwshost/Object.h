@@ -239,11 +239,13 @@ class ObjectDesc {
 
 	struct {
 		Kind m_kind: 16;
-		int64_t m_bits: 48;
+		int16_t m_bits;
+		int32_t m_fwdLen;
 	};
 
 	ObjectDesc(Kind kind): m_kind(kind) {};
 
+	static mps_addr_t mpsScanOne(ObjectDesc * obj);
 	static mps_res_t mpsScan(mps_ss_t ss, mps_addr_t base,
 	    mps_addr_t limit);
 	static mps_addr_t mpsSkip(mps_addr_t base);
@@ -252,13 +254,12 @@ class ObjectDesc {
 	static void mpsPad(mps_addr_t addr, size_t size);
 };
 
-class Fwd : public ObjectDesc {
-	ObjectDesc *m_ptr;
-	size_t m_size;
+struct Fwd : public ObjectDesc {
+	ObjectDesc *m_fwdPtr;
 };
 
 struct Pad : public ObjectDesc {
-	size_t m_size;
+	size_t m_padLen;
 };
 
 struct CharArray: public ObjectDesc {

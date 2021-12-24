@@ -25,11 +25,18 @@ namespace VM {
 static const int gSmiMax = INT32_MAX / 2, gSmiMin = INT32_MIN / 2;
 static const double gEpsilon = std::numeric_limits<double>::epsilon();
 
-Oop
+inline Oop
+Interpreter::push(Oop oop)
+{
+	m_stack.push_back(oop);
+	return oop;
+}
+
+inline Oop
 Interpreter::pop()
 {
-	Oop val = m_stack.top();
-	m_stack.pop();
+	Oop val = m_stack.back();
+	m_stack.pop_back();
 	return val;
 }
 
@@ -39,10 +46,12 @@ Interpreter::Interpreter(ObjectMemoryOSThread &omemt, MemOop<Closure> closure)
 	m_bp = 0;
 	m_pc = 0;
 	m_closure = closure;
-
 	m_env = omemt.makeEnvironment(
 	    *(MemOop<Environment> *)&ObjectMemory::s_undefined,
 	    closure->m_func->m_map, 0);
+
+	mps_root_create(&m_mpsRoot, omemt.omem().arena(), mps_rank_exact(),
+	    MPS_RM_PROT, scanOopVec, &m_stack, 0);
 
 	printf("Hello\n");
 }
@@ -64,32 +73,32 @@ Interpreter::interpret()
 		switch (op) {
 		case kPushArg: {
 			uint8_t idx = FETCH;
-			m_stack.push(m_env->m_args->m_elements[idx]);
+			push(m_env->m_args->m_elements[idx]);
 			break;
 		}
 
 		case kPushUndefined: {
-			m_stack.push(ObjectMemory::s_undefined);
+			push(ObjectMemory::s_undefined);
 			break;
 		}
 
 		case kPushLiteral: {
 			uint8_t idx = FETCH;
-			m_stack.push(m_closure->m_func->m_literals->m_elements[idx]);
+			push(m_closure->m_func->m_literals->m_elements[idx]);
 			break;
 		}
 
 		case kResolve: {
 			uint8_t idx = FETCH;
 			PrimOop val = *(PrimOop*)&m_closure->m_func->m_literals->m_elements[idx];
-			m_stack.push(m_env->lookup(val->m_str));
+			push(m_env->lookup(val->m_str));
 			break;
 		}
 
 		case kResolvedStore: {
 			uint8_t idx = FETCH;
 			PrimOop id = *(PrimOop*)&m_closure->m_func->m_literals->m_elements[idx];
-			Oop obj = m_stack.top();
+			Oop obj = m_stack.back();
 
 			m_env->lookup(id->m_str) = obj;
 
@@ -97,7 +106,7 @@ Interpreter::interpret()
 		}
 
 		case kPop: {
-			m_stack.pop();
+			pop();
 			break;
 		}
 
@@ -127,13 +136,13 @@ Interpreter::interpret()
 			if (a.isSmi() && b.isSmi()) {
 				int64_t res = a.asI32() + b.asI32();
 				if (res <= gSmiMin || res >= gSmiMax)
-					m_stack.push(m_omemt.makeDouble(res));
+					push(m_omemt.makeDouble(res));
 				else
-					m_stack.push((int32_t)res);
+					push((int32_t)res);
 			} else if (a.type() == Oop::kDouble && b.type() == Oop::kDouble)
 			{
 				*a.dblAddr() = *a.dblAddr() + *b.dblAddr();
-				m_stack.push(a);
+				push(a);
 			}
 			else
 				abort();
@@ -148,11 +157,11 @@ Interpreter::interpret()
 			if (ISINT32(a) && ISINT32(b)) {
 				int64_t res = a.i32 - b.i32;
 				if (res <= gSmiMin || res >= gSmiMax)
-					m_stack.push((double)res);
+					push((double)res);
 				else
-					m_stack.push((int32_t)res);
+					push((int32_t)res);
 			} else if (ISDOUBLE(a) && ISDOUBLE(b))
-				m_stack.push(a.dbl - b.dbl);
+				push(a.dbl - b.dbl);
 			else
 				abort();
 			break;
@@ -165,11 +174,11 @@ Interpreter::interpret()
 			if (ISINT32(a) && ISINT32(b)) {
 				int64_t res = a.i32 * b.i32;
 				if (res <= gSmiMin || res >= gSmiMax)
-					m_stack.push((double)res);
+					push((double)res);
 				else
-					m_stack.push((int32_t)res);
+					push((int32_t)res);
 			} else if (ISDOUBLE(a) && ISDOUBLE(b))
-				m_stack.push(a.dbl * b.dbl);
+				push(a.dbl * b.dbl);
 			else
 				abort();
 			break;
@@ -182,12 +191,12 @@ Interpreter::interpret()
 				int32_t res;
 
 				if (a.i32 % b.i32 == 0)
-					m_stack.push((int32_t)(a.i32 / b.i32));
+					push((int32_t)(a.i32 / b.i32));
 				else
-					m_stack.push(
+					push(
 					    (double)a.i32 / (double)b.i32);
 			} else if (ISDOUBLE(a) && ISDOUBLE(b))
-				m_stack.push(a.dbl / b.dbl);
+				push(a.dbl / b.dbl);
 			else
 				abort();
 			break;
@@ -200,11 +209,11 @@ Interpreter::interpret()
 				int32_t res;
 
 				if (a.i32 == b.i32)
-					m_stack.push(true);
+					push(true);
 				else
-					m_stack.push(false);
+					push(false);
 			} else if (ISDOUBLE(a) && ISDOUBLE(b))
-				m_stack.push(DBLEQ(a, b));
+				push(DBLEQ(a, b));
 			else
 				abort();
 			break;
@@ -228,10 +237,10 @@ Interpreter::interpret()
 				env->m_args->m_elements[i] = arg;
 			}
 
-			m_stack.push((int32_t)m_pc);
-			m_stack.push((int32_t)m_bp);
-			m_stack.push(m_closure);
-			m_stack.push(m_env);
+			push((int32_t)m_pc);
+			push((int32_t)m_bp);
+			push(m_closure);
+			push(m_env);
 
 			m_pc = 0;
 			m_bp = m_stack.size() - 1;
@@ -247,7 +256,7 @@ Interpreter::interpret()
 			MemOop<Closure> closure;
 
 			closure = m_omemt.makeClosure(val, m_env);
-			m_stack.push(closure);
+			push(closure);
 
 			break;
 		}
@@ -270,6 +279,7 @@ Interpreter::interpret()
 				JSValue pc = pop();*/
 
 				printf("RETURNING...\n");
+				mps_arena_collect(m_omemt.omem().arena());
 				Oop env = pop();
 				Oop closure = pop();
 				m_env = AS(MemOop<Environment>, env);
@@ -278,7 +288,7 @@ Interpreter::interpret()
 				m_pc = pop().asI32();
 				//assert(m_env);
 				//assert(m_closure);
-				m_stack.push(val);
+				push(val);
 			}
 			break;
 		}
@@ -286,6 +296,8 @@ Interpreter::interpret()
 		default:
 			abort();
 		}
+
+		m_omemt.poll();
 	}
 }
 

@@ -32,6 +32,8 @@ class ObjectMemory {
 	static PrimOop s_undefined, s_null, s_true, s_false;
 
 	ObjectMemory();
+
+	inline mps_arena_t & arena() { return m_mpsArena; }
 };
 
 /**
@@ -63,6 +65,13 @@ class ObjectMemoryOSThread {
 	    const std::vector<char *> &localNames);
 	MemOop<Function> makeFunction(MemOop<EnvironmentMap> map,
 	    MemOop<CharArray> bytecode, MemOop<PlainArray> literals);
+
+	void poll();
+
+	inline ObjectMemory & omem() { return m_omem; }
 };
+
+mps_res_t
+scanOopVec(mps_ss_t ss, void *p, size_t s);
 
 #endif /* OBJECTMEMORY_HH_ */

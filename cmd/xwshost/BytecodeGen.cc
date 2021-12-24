@@ -153,8 +153,6 @@ class Hoister : public Visitor {
 	    : m_inArgs(-1) {};
 };
 
-void disassemble(char * code, int siz);
-
 MemOop<Function>
 VM::BytecodeEncoder::makeFun(std::vector<char *> &localNames,
     std::vector<char *> &paramNames)

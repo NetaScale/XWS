@@ -1,3 +1,4 @@
+#include <cassert>
 #include <err.h>
 
 #include "Object.inl.hh"
@@ -174,4 +175,54 @@ ObjectMemoryOSThread::makeFunction(MemOop<EnvironmentMap> map,
 	} while (!mps_commit(m_mpsObjAP, ((void *)obj), sizeof(Function)));
 
 	return obj;
+}
+
+void
+ObjectMemoryOSThread::poll()
+{
+	mps_message_type_t type;
+	mps_arena_t arena = m_omem.arena();
+
+	while (mps_message_queue_type(&type, arena)) {
+		mps_message_t message;
+		mps_bool_t b;
+		b = mps_message_get(&message, arena, type);
+		assert(b); /* we just checked there was one */
+
+		if (type == mps_message_type_gc_start()) {
+			printf("Collection started.\n");
+			printf("  Why: %s\n",
+			    mps_message_gc_start_why(arena, message));
+			printf("  Clock: %lu\n",
+			    (unsigned long)mps_message_clock(arena, message));
+
+		} else if (type == mps_message_type_gc()) {
+			size_t live = mps_message_gc_live_size(arena, message);
+			size_t condemned = mps_message_gc_condemned_size(arena,
+			    message);
+			size_t not_condemned =
+			    mps_message_gc_not_condemned_size(arena, message);
+			printf("Collection finished.\n");
+			printf("    live %lu\n", (unsigned long)live);
+			printf("    condemned %lu\n", (unsigned long)condemned);
+			printf("    not_condemned %lu\n",
+			    (unsigned long)not_condemned);
+			printf("    clock: %lu\n",
+			    (unsigned long)mps_message_clock(arena, message));
+
+		} else if (type == mps_message_type_finalization()) {
+#if 0
+			mps_addr_t port_ref;
+			obj_t port;
+			mps_message_finalization_ref(&port_ref, arena, message);
+			port = port_ref;
+#endif
+
+		} else {
+			printf("Unknown message from MPS!\n");
+			abort();
+		}
+
+		mps_message_discard(arena, message);
+	}
 }

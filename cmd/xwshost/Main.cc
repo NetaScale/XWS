@@ -13,6 +13,17 @@
 #include "AST.hh"
 #include "VM.hh"
 
+std::ostream& ital(std::ostream& os)
+{
+    return os << "\e[3m";
+}
+
+std::ostream& def(std::ostream& os)
+{
+    return os << "\e[0m";
+}
+
+
 int main2(int argc, char * argv[], ObjectMemoryOSThread& omemt)
 {
 	/*std::string tst("const y = 40;\n"
@@ -36,8 +47,11 @@ int main2(int argc, char * argv[], ObjectMemoryOSThread& omemt)
 	/* And, finally, destroy this scanner. */
 	jslex_destroy(drv.scanner);
 
-	VM::Interpreter interp(omemt, omemt.makeClosure(drv.generateBytecode(), *(MemOop<Environment>*)&ObjectMemory::s_undefined));
-	printf("INTERPRETATION BEGINS:\n");
+	VM::Interpreter interp(omemt, omemt.makeClosure(drv.generateBytecode(),
+	    *(MemOop<Environment> *)&ObjectMemory::s_undefined));
+	std::cout << "Evaluating bytecode corresponding to JS source:\n";
+	std::cout << ital << tst << def << "\n";
+
 	interp.interpret();
 
 	return 0;

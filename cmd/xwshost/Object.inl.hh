@@ -90,19 +90,19 @@ Oop::JS_ToNumber(ObjectMemoryOSThread &omem)
 inline Oop&
 Environment::lookup(const char *val)
 {
-	for (size_t max = m_map->m_nLocals + m_map->m_nParams;
+	for (size_t max = m_map->m_nLocals + m_map->m_nParams - 1;
 	     max >= m_map->m_nParams; max--) {
 		if (!strcmp(m_map->m_names[max]->m_str, val)) {
 			printf("Resolved %s to local %lu\n", val,
-			    max - m_map->m_nParams);
+			    max);
 			return m_locals->m_elements[max];
 		}
 	}
 
-	for (size_t max = m_map->m_nParams; max >= 0; max--) {
+	for (size_t max = m_map->m_nParams - 1; max >= 0; max--) {
 		if (!strcmp(m_map->m_names[max]->m_str, val)) {
 			printf("Resolved %s to argument %lu\n", val,
-			    max - m_map->m_nParams);
+			    max);
 			return m_args->m_elements[max];
 		}
 	}

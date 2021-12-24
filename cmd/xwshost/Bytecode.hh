@@ -65,7 +65,7 @@ class BytecodeEncoder {
 	BytecodeEncoder(ObjectMemoryOSThread & omemt)
 	    : m_omemt(omemt) {};
 
-	
+
 	MemOop<Function> makeFun(std::vector<char*> &localNames,
 	std::vector<char*> & paramNames);
 

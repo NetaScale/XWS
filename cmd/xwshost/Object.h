@@ -234,7 +234,7 @@ class ObjectDesc {
 
 		/*
 		 * the following are proper objects (subclass ProperObjectDesc)
-		 */ 
+		 */
 	};
 
 	struct {
@@ -311,8 +311,8 @@ struct Map : public ObjectDesc {
 	struct PropertyDesc {
 		uint32_t m_idx; /**< index in objects' namedVals array */
 		struct {
-			bool esWritable : 1; 
-			bool esEnumerable : 1; 
+			bool esWritable : 1;
+			bool esEnumerable : 1;
 			bool esConfigurable : 1;
 		} m_attributes;
 

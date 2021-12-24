@@ -4,92 +4,6 @@
 #include "Bytecode.hh"
 #include "VM.hh"
 
-void disassemble(char * code , int siz)
-{
-int pc = 0;
-	while (pc < siz) {
-#define FETCH code[pc++];
-		char op = FETCH;
-
-		printf(" %d\t", pc - 1);
-		switch (op) {
-		case VM::kPushArg: {
-			uint8_t idx = FETCH;
-			printf("PushArg (%d)\n", idx);
-			break;
-		}
-
-		case VM::kPushUndefined: {
-			printf("PushUndefined\n");
-			break;
-		}
-
-		case VM::kPushLiteral: {
-			uint8_t idx = FETCH;
-			printf("PushLiteral (%d)\n", idx);
-			break;
-		}
-
-		case VM::kResolve: {
-			uint8_t idx = FETCH;
-			//JSValue val = m_literals[idx];
-			printf("Resolve (%d)\n", idx);
-			break;
-		}
-
-		case VM::kResolvedStore: {
-			uint8_t idx = FETCH;
-			//JSValue id = m_literals[idx];
-			printf("ResolvedStore (%d)\n", idx);
-
-			break;
-		}
-
-		case VM::kPop: {
-			printf("Pop\n");
-			break;
-		}
-
-		case VM::kAdd: {
-			printf("Add\n");
-
-			break;
-		}
-
-		case VM::kJump: {
-			uint8_t b1 = FETCH;
-			uint8_t b2 = FETCH;
-			int16_t offs = (b1 << 8) | b2;
-			printf("Jump (%d)\n", pc + offs);
-			break;
-		}
-
-		case VM::kJumpIfFalse: {
-			uint8_t b1 = FETCH;
-			uint8_t b2 = FETCH;
-			int16_t offs = (b1 << 8) | b2;
-			printf("JumpIfFalse (%d)\n", pc + offs);
-			break;
-		}
-
-		case VM::kCall: {
-			uint8_t nargs = FETCH;
-			printf("Call (%d)\n", nargs);
-			break;
-		}
-
-		case VM::kCreateClosure: {
-			printf("CreateClosure\n");
-			break;
-		}
-
-		case VM::kReturn:
-			printf("Return\n");
-			break;
-		}
-	}	
-}
-
 void
 Function::disassemble()
 {
@@ -97,8 +11,6 @@ Function::disassemble()
 	int end = m_bytecode->m_nElements;
 
 	printf("FUNCTION OF LENGTH %d\n", end);
-	if (end > 40)
-		end = 40;
 	printf("DISASSEMBLY:\n");
 
 	while (pc < end) {

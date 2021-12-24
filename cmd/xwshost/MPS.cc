@@ -81,7 +81,7 @@ ObjectMemory::ObjectMemory()
 	MPS_ARGS_BEGIN (args) {
 		MPS_ARGS_ADD(args, MPS_KEY_CHAIN, m_mpsChain);
 		MPS_ARGS_ADD(args, MPS_KEY_FORMAT, m_mpsPrimDescFmt);
-		MPS_ARGS_ADD(args, MPS_KEY_ALIGN, 16);
+		MPS_ARGS_ADD(args, MPS_KEY_ALIGN, 32);
 		MPS_ARGS_DONE(args);
 		res = mps_pool_create_k(&m_mpsPrimDescPool, m_mpsArena,
 		    mps_class_amcz(), args);
@@ -94,7 +94,7 @@ ObjectMemory::ObjectMemory()
 	MPS_ARGS_BEGIN (args) {
 		MPS_ARGS_ADD(args, MPS_KEY_CHAIN, m_mpsChain);
 		MPS_ARGS_ADD(args, MPS_KEY_FORMAT, m_mpsObjDescFmt);
-		MPS_ARGS_ADD(args, MPS_KEY_ALIGN, 16);
+		MPS_ARGS_ADD(args, MPS_KEY_ALIGN, 32);
 		MPS_ARGS_DONE(args);
 		res = mps_pool_create_k(&m_mpsObjDescPool, m_mpsArena,
 		    mps_class_amc(), args);

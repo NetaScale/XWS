@@ -52,7 +52,7 @@ ObjectMemoryOSThread::makeString(const char *txt)
 		mps_res_t res = mps_reserve(((void **)&obj), m_mpsLeafObjAP,
 		    sizeof(PrimDesc));
 		if (res != MPS_RES_OK)
-			FATAL("out of memory in makeArray");
+			FATAL("out of memory in makeString");
 		obj->m_kind = PrimDesc::kString;
 		obj->m_strLen = len;
 	} while (!mps_commit(m_mpsLeafObjAP, ((void *)obj), size));
@@ -60,7 +60,7 @@ ObjectMemoryOSThread::makeString(const char *txt)
 	memcpy(obj->m_str, txt, inlineLen);
 	memcpy(obj->m_str + 7, txt + 7, extraLen);
 
-	return obj;
+	return PrimOop(obj, Oop::kString);
 }
 
 MemOop<CharArray>
@@ -91,13 +91,14 @@ ObjectMemoryOSThread::makeClosure(MemOop<Function> fun, MemOop<Environment> env)
 
 	do {
 		mps_res_t res = mps_reserve(((void **)&obj), m_mpsObjAP,
-		    sizeof(Closure));
+		    ALIGN(sizeof(Closure)));
 		if (res != MPS_RES_OK)
 			FATAL("out of memory in makeClosure");
 		obj->m_kind = ObjectDesc::kClosure;
 		obj->m_func = fun;
 		obj->m_baseEnv = env;
-	} while (!mps_commit(m_mpsObjAP, ((void *)obj), sizeof(Closure)));
+	} while (!mps_commit(m_mpsObjAP, ((void *)obj),
+	    ALIGN(sizeof(Closure))));
 
 	return obj;
 }
@@ -113,15 +114,17 @@ ObjectMemoryOSThread::makeEnvironment(MemOop<Environment> prev,
 
 	do {
 		mps_res_t res = mps_reserve(((void **)&obj), m_mpsObjAP,
-		    sizeof(Environment));
+		    ALIGN(sizeof(Environment)));
 		if (res != MPS_RES_OK)
 			FATAL("out of memory in makeEnvironment");
 		obj->m_kind = ObjectDesc::kEnvironment;
+		obj->m_map = map;
 		obj->m_prev = prev;
 		obj->m_args = args;
 		obj->m_locals = locals;
 		//new(obj) Environment(prev, map, args, locals);
-	} while (!mps_commit(m_mpsObjAP, ((void *)obj), sizeof(Environment)));
+	} while (!mps_commit(m_mpsObjAP, ((void *)obj),
+	    ALIGN(sizeof(Environment))));
 
 	return obj;
 }

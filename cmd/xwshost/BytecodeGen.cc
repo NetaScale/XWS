@@ -159,25 +159,12 @@ MemOop<Function>
 VM::BytecodeEncoder::makeFun(std::vector<char *> &localNames,
     std::vector<char *> &paramNames)
 {
-	printf("\n\n INITIAL DIS\n\n");
-	disassemble(m_bytecode.data(), m_bytecode.size());
-	printf("DONE\n\n");
-
 	MemOop<CharArray> bytecode = m_omemt.makeCharArray(m_bytecode);
-
-	printf("\n\n Byte DIS 1\n\n");
-		disassemble(bytecode->m_elements,bytecode->m_nElements);
-	printf("DONE\n\n");
-
-
 	MemOop<EnvironmentMap> envMap = m_omemt.makeEnvironmentMap(paramNames,
 	    localNames);
 	MemOop<PlainArray> literals = m_omemt.makeArray(m_literals.size());
 	memcpy(literals->m_elements, m_literals.data(), m_literals.size() * sizeof(Oop));
 
-	printf("\n\n Byte DIS 2\n\n");
-		disassemble(bytecode->m_elements,bytecode->m_nElements);
-	printf("DONE\n\n");
 	return m_omemt.makeFunction(envMap, bytecode, literals);
 }
 
@@ -277,7 +264,7 @@ BytecodeGenerator::exitFunction(DeclEnv *env)
 
 	m_gens.top()->emit0(VM::kPushUndefined);
 	m_gens.top()->emit0(VM::kReturn);
-	
+
 	for (std::map<std::string, Decl *>::iterator it = env->m_decls.begin();
 	     it != env->m_decls.end(); it++)
 		if (it->second->m_type == Decl::kLocal)

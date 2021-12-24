@@ -218,7 +218,7 @@ Interpreter::interpret()
 			Oop val = pop();
 			MemOop<Closure> closure = AS(MemOop<Closure>, val);
 			MemOop<Environment> env = m_omemt.makeEnvironment(m_env, closure->m_func->m_map, nArgs);
-	
+
 			for (int i = 0; i < nArgs; i++) {
 				printf("ARG %d:", i);
 				Oop arg = pop();
